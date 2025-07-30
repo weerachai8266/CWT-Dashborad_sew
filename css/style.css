@@ -1,0 +1,217 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f3f4f6;
+    margin: 0;
+    padding: 0;
+    padding-top: 57px; /* เว้นพื้นที่สำหรับ navbar แบบ fixed */
+}
+
+/* Custom scrollbar */
+.overflow-x-auto::-webkit-scrollbar {
+    height: 8px;
+}
+.overflow-x-auto::-webkit-scrollbar-track {
+    background: #e0e0e0;
+    border-radius: 10px;
+}
+.overflow-x-auto::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.chart-container {
+    position: relative;
+    height: 300px;
+    margin-bottom: 20px;
+}
+
+.line-card {
+    border-left: 4px solid #007bff;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.line-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+.line-card.fc { border-left-color: #28a745; }
+.line-card.fb { border-left-color: #ffc107; }
+.line-card.rc { border-left-color: #dc3545; }
+.line-card.rb { border-left-color: #6f42c1; }
+.line-card.third { border-left-color: #fd7e14; }
+.line-card.sub { border-left-color: #20c997; }
+
+.card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+
+.sidebar {
+    width: 220px;
+    height: 100vh;
+    position: fixed;
+    background-color: #344036;
+}
+.sidebar .nav-link {
+    color: #fff;
+    padding: 15px;
+}
+.sidebar .nav-link.active {
+    background-color: #495057;
+    font-weight: bold;
+    border-radius: 6px;
+}
+.main-content {
+    margin-left: 220px;
+    padding: 20px;
+}
+
+/* Toggle Switch Styles */
+.display-toggle-container {
+    text-align: center;
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 80px;
+    height: 34px;
+}
+
+.toggle-input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-label {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #28a745;
+    border-radius: 17px;
+    transition: .4s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 500;
+    color: white;
+}
+
+.toggle-input:checked + .toggle-label {
+    background-color: #007bff;
+}
+
+.toggle-slider {
+    position: absolute;
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    border-radius: 50%;
+    transition: .4s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.toggle-input:checked + .toggle-label .toggle-slider {
+    transform: translateX(46px);
+}
+
+.toggle-text::before {
+    content: attr(data-off);
+}
+
+.toggle-input:checked + .toggle-label .toggle-text::before {
+    content: attr(data-on);
+}
+
+/* Color Coding for Percentage */
+.percentage-badge {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: bold;
+    color: white;
+}
+
+.percentage-critical {
+    background-color: #dc3545 !important;
+}
+
+.percentage-warning {
+    background-color: #ffc107 !important;
+    color: #000 !important;
+}
+
+.percentage-good {
+    background-color: #28a745 !important;
+}
+
+.percentage-excellent {
+    background-color: #007bff !important;
+}
+
+/* Summary Card Animations */
+.summary-card {
+    transition: all 0.3s ease;
+}
+
+.summary-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.summary-card h5 {
+    transition: all 0.3s ease;
+}
+
+/* Chart Color Coding Variables */
+:root {
+    --critical-color: #dc3545;
+    --warning-color: #ffc107;
+    --good-color: #28a745;
+    --excellent-color: #007bff;
+}
+
+/* Animation Effects */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-2px); }
+    75% { transform: translateX(2px); }
+}
+
+@keyframes glow {
+    0% { box-shadow: 0 0 5px rgba(0, 123, 255, 0.5); }
+    100% { box-shadow: 0 0 20px rgba(0, 123, 255, 0.8); }
+}
+
+.critical-animation {
+    animation: shake 0.5s ease-in-out;
+}
+
+.excellent-animation {
+    animation: glow 1s ease-in-out infinite alternate;
+}
+
+.pulse-animation {
+    animation: pulse 2s infinite;
+}
