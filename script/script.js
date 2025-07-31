@@ -474,6 +474,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('report_date_start').value = today;
     document.getElementById('report_date_end').value = today;
+
+    // document.getElementById('displayToggle').checked = true; // ให้ toggle อยู่ในตำแหน่ง "เปอร์เซ็น"
+    // currentDisplayType = 'percentage';                       // ตั้งค่าตัวแปรให้ตรง
     
     // Initialize empty charts first
     initializeCharts();

@@ -231,11 +231,11 @@ class get_db {
                     if ($display_type === 'percentage') {
                         // คำนวณเปอร์เซ็นต์
                         $actual_working_minutes = $this->getActualWorkingMinutes($hour);
-                        $hourly_target = round(($targets[$line] * $actual_working_minutes) / 60);
+                        $hourly_target = (int) round(($targets[$line] * $actual_working_minutes) / 60);
 
                         if ($hourly_target > 0) {
                             $percentage = ($actual_qty / $hourly_target) * 100;
-                            $line_data[] = round($percentage, 1);
+                            $line_data[] = round($percentage, 2);
                         } else {
                             $line_data[] = 0;
                         }
@@ -368,13 +368,13 @@ class get_db {
                 for ($hour = 8; $hour <= 17; $hour++) {
                     $total_working_minutes += $this->getActualWorkingMinutes($hour);
                 }
-                $daily_target = ($targets[$line] * $total_working_minutes) / 60;
+                $daily_target = (int) round(($targets[$line] * $total_working_minutes) / 60);
                 
                 $result[$line] = [
                     'total_qty' => $total_qty,
                     'total_items' => (int)($row['total_items'] ?? 0),
                     'unique_items' => (int)($row['unique_items'] ?? 0),
-                    'percentage' => round($percentage, 1),
+                    'percentage' => round($percentage, 2),
                     'target' => $targets[$line],
                     'daily_target' => round($daily_target, 0)
                 ];
@@ -428,7 +428,7 @@ class get_db {
                 if ($adjusted_hourly_target > 0) {
                     $hourly_percentage = ($actual_qty / $adjusted_hourly_target) * 100;
                     // var_dump($hourly_percentage);
-                    $hourly_percentages[] = $hourly_percentage;
+                    $hourly_percentages[] = $hourly_percentage; 
                 }
             }
             
