@@ -1,10 +1,3 @@
-<?php
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-include 'connect.php'; // เชื่อมต่อฐานข้อมูล
-
-?>
-
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -26,6 +19,7 @@ include 'connect.php'; // เชื่อมต่อฐานข้อมูล
     <!-- Chart.js CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -38,7 +32,13 @@ include 'connect.php'; // เชื่อมต่อฐานข้อมูล
             <div class="d-flex align-items-center gap-3">
                 <img src="img/logo-chaiwattana.png" alt="CWT Logo" style="height: 40px;">
             </div>
+            <!-- <div class="d-flex align-items-center gap-3">
+                <img src="img/seat.png" alt="CWT Logo" style="height: 40px;">
+            </div> -->
             <span class="navbar-brand mb-0 h1 fw-semibold mx-auto">CWT Production</span>
+            <div class="d-flex align-items-center gap-3">
+                <img src="img/cwt.png" alt="CWT Logo" style="height: 40px;">
+            </div>
         </div>
     </nav>
     <!-- Main Container -->
@@ -46,15 +46,15 @@ include 'connect.php'; // เชื่อมต่อฐานข้อมูล
         <!-- Sidebar -->
         <nav class="sidebar">
             <ul class="nav flex-column pt-3">
-            <li class="nav-item">
-                <a class="nav-link active" id="board-tab" data-bs-toggle="tab" href="#board" role="tab">📊 Dashboard</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" id="target-tab" data-bs-toggle="tab" href="#target" role="tab">🎯 Target</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" id="report-tab" data-bs-toggle="tab" href="#report_data" role="tab">📑 Report</a>
-            </li>
+                <li class="nav-item">
+                    <a class="nav-link active" id="board-tab" data-bs-toggle="tab" href="#board" role="tab">📊 Dashboard</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="target-tab" data-bs-toggle="tab" href="#target" role="tab">🎯 Target</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="report-tab" data-bs-toggle="tab" href="#report_data" role="tab">📑 Report</a>
+                </li>
             </ul>
         </nav>
 
@@ -64,6 +64,56 @@ include 'connect.php'; // เชื่อมต่อฐานข้อมูล
             <div class="tab-content">
                 <!-- Dashboard Tab -->
                 <div class="tab-pane fade show active" id="board" role="tabpanel">
+                    <!-- Report Filter -->
+                    <div class="row " id="report-filter-form">
+                        <div class="col-md-3">
+                            <div class="input-group">
+                                <label class="input-group-text">วันที่</label>
+                                <input class="form-control" type="date" id="report_date_start" value="<?= date('Y-m-d') ?>">
+                                <input class="form-control" type="date" id="report_date_end" value="<?= date('Y-m-d') ?>">
+                            </div>
+                        </div>
+                        <div class="col-md-6">                            
+                            <div class="col-auto d-flex align-items-center gap-3">
+
+                                <!-- auto update -->
+                                <div class="form-check mt-1">
+                                    <input type="checkbox" class="form-check-input" id="realTimeUpdate">
+                                    <label class="form-check-label" for="realTimeUpdate">อัปเดตอัตโนมัติทุก 30 วิ</label>
+                                </div>
+
+                                <!-- Display Type -->
+                                <div class="col-auto">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="displayType" id="radioPercentage" value="percentage" checked>
+                                        <label class="form-check-label" for="radioPercentage">
+                                            แสดงผลแบบเปอร์เซ็น
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-auto">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="displayType" id="radioPieces" value="pieces">
+                                        <label class="form-check-label" for="radioPieces">
+                                            แสดงผลแบบชิ้น
+                                        </label>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- button -->
+                        <div class="col-md-3 d-flex justify-content-end gap-3 align-items-start">
+                            <!-- <a href="break_management.php" class="btn btn-secondary btn-sm">⚙️ จัดการเบรค</a> -->
+                            <button id="btnFilter" class="btn btn-primary">ตกลง</button>
+                            <a id="btnExport" href="#" class="btn btn-success">Excel</a>
+                        </div>
+                        
+                    </div>  <!-- End of Report Filter -->
+
+                    <hr class="my-4">
 
                     <!-- Loading State -->
                     <div id="loadingState" class="d-none text-center mb-3">
@@ -86,47 +136,9 @@ include 'connect.php'; // เชื่อมต่อฐานข้อมูล
                         <div class="text-muted mt-2">กำลังโหลดข้อมูล...</div>
                     </div> 
                     <!-- End fo Loading Spinner -->
-                            
-                    <!-- Report Filter -->
-                    <div class="row" id="report-filter-form">
-                        <div class="col-md-3">
-                            <div class="input-group">
-                                <label class="input-group-text">วันที่</label>
-                                <input class="form-control" type="date" id="report_date_start" value="<?= date('Y-m-d') ?>">
-                                <input class="form-control" type="date" id="report_date_end" value="<?= date('Y-m-d') ?>">
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="form-check mt-1">
-                                <input type="checkbox" class="form-check-input" id="realTimeUpdate">
-                                <label class="form-check-label" for="realTimeUpdate">อัปเดตอัตโนมัติทุก 30 วิ</label>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <!-- Toggle Switch for Display Type -->
-                            <div class="display-toggle-container">
-                                <label class="form-label small mb-1">แสดงผล</label>
-                                <div class="toggle-switch">
-                                    <input type="checkbox" id="displayToggle" class="toggle-input">
-                                    <label for="displayToggle" class="toggle-label">
-                                        <span class="toggle-text" data-on="เปอร์เซ็น" data-off="ชิ้น"></span>
-                                        <span class="toggle-slider"></span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
 
-                        <div class="col-md-5 d-flex justify-content-end gap-3 align-items-start">
-                            <a href="break_management.php" class="btn btn-secondary btn-sm">⚙️ จัดการเบรค</a>
-                            <button id="btnFilter" class="btn btn-primary">ตกลง</button>
-                            <a id="btnExport" href="#" class="btn btn-success">Excel</a>
-                        </div>
-                        
-                    </div>  <!-- End of Report Filter -->
-
-                    <hr class="my-4">
-
-                    <!-- Summary Statistics -->                        
+                    <!-- Summary Statistics -->
+                    <!-- เดี๋ยวกลับมาแก้ฟังก์ชั่นนี้ -->
                     <div class="row mt-4">
                         <div class="col-12 mb-4">
                             <div class="card">
@@ -273,8 +285,23 @@ include 'connect.php'; // เชื่อมต่อฐานข้อมูล
 
                 <!-- Report Data Tab -->
                 <div class="tab-pane fade" id="target" role="tabpanel">
-                    <h3>Target</h3>
-                    <p>ข้อมูลเป้าหมาย...</p>
+
+                    <div class="row">
+                        <h3>Report</h3>
+                        <p>ข้อมูลรายงาน...</p>
+                    </div>
+
+                    <hr class="my-4">      
+
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header bg-primary text-white">
+                                    <h6 class="mb-0">📊 รายงานการผลิต</h6>
+                                </div>
+                            </div>
+                        </div>                        
+                    </div>
                 </div> <!-- End of Report Data Tab -->
 
                 <!-- Report Data Tab -->

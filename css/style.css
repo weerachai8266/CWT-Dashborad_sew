@@ -45,6 +45,15 @@ body {
 .line-card.third { border-left-color: #fd7e14; }
 .line-card.sub { border-left-color: #20c997; }
 
+/* เดี่ยวกลับมาแก้ฟังก์ชั่นนี้ */
+#summaryStatistics {
+    position: sticky;
+    top: 57px;
+    z-index: 1000;
+    background-color: #fff;
+    padding: 10px 15px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
 .card {
     border: none;
     border-radius: 12px;
@@ -69,70 +78,6 @@ body {
 .main-content {
     margin-left: 220px;
     padding: 20px;
-}
-
-/* Toggle Switch Styles */
-.display-toggle-container {
-    text-align: center;
-}
-
-.toggle-switch {
-    position: relative;
-    display: inline-block;
-    width: 80px;
-    height: 34px;
-}
-
-.toggle-input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-}
-
-.toggle-label {
-    position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: #28a745;
-    border-radius: 17px;
-    transition: .4s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    font-weight: 500;
-    color: white;
-}
-
-.toggle-input:checked + .toggle-label {
-    background-color: #007bff;
-}
-
-.toggle-slider {
-    position: absolute;
-    height: 26px;
-    width: 26px;
-    left: 4px;
-    bottom: 4px;
-    background-color: white;
-    border-radius: 50%;
-    transition: .4s;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-.toggle-input:checked + .toggle-label .toggle-slider {
-    transform: translateX(46px);
-}
-
-.toggle-text::before {
-    content: attr(data-off);
-}
-
-.toggle-input:checked + .toggle-label .toggle-text::before {
-    content: attr(data-on);
 }
 
 /* Color Coding for Percentage */

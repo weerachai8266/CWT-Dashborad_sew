@@ -37,16 +37,16 @@ const PERCENTAGE_COLORS = {
 
 // Get color based on percentage
 function getColorByPercentage(percentage) {
-    if (percentage >= 105) return PERCENTAGE_COLORS.excellent;
-    if (percentage >= 95) return PERCENTAGE_COLORS.good;
+    if (percentage >= 101) return PERCENTAGE_COLORS.excellent;
+    if (percentage >= 93) return PERCENTAGE_COLORS.good;
     if (percentage >= 80) return PERCENTAGE_COLORS.warning;
     return PERCENTAGE_COLORS.critical;
 }
 
 // Get CSS class based on percentage
 function getPercentageClass(percentage) {
-    if (percentage >= 105) return 'percentage-excellent';
-    if (percentage >= 95) return 'percentage-good';
+    if (percentage >= 101) return 'percentage-excellent';
+    if (percentage >= 93) return 'percentage-good';
     if (percentage >= 80) return 'percentage-warning';
     return 'percentage-critical';
 }
@@ -117,6 +117,19 @@ const chartConfig = {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
+            // datalabels plugin configuration
+            datalabels: {
+                anchor: 'start',  // ตำแหน่งของ label จะอยู่ที่ปลายแท่ง
+                align: 'top',   // ตำแหน่งของ label จะอยู่ด้านบนของแท่ง
+                color: '#333',  // สีของ label
+                font: {
+                    size: 12,
+                    weight: 'bold'
+                },
+                formatter: function(value) {
+                    return currentDisplayType === 'percentage' ? value + '%' : value + ' ชิ้น';
+                }
+            },
             legend: {
                 display: false
             }
@@ -124,12 +137,14 @@ const chartConfig = {
         scales: {
             y: {
                 beginAtZero: true,
+                suggestedMax: 120,
                 ticks: {
                     stepSize: 10
                 }
             }
         }
-    }
+    },
+    plugins: [ChartDataLabels] // ✅ ตรงนี้คือการเปิดใช้ plugin
 };
 
 // Create charts
@@ -139,6 +154,7 @@ function createChart(canvasId, data, color, label) {
     // Update chart config for percentage display
     const config = {
         ...chartConfig,
+        plugins: [ChartDataLabels], // ✅ เปิด plugin
         data: {
             labels: currentData.labels || [],
             datasets: [{
@@ -147,10 +163,11 @@ function createChart(canvasId, data, color, label) {
                 backgroundColor: function(context) {
                     if (currentDisplayType === 'percentage') {
                         const value = context.parsed.y;
-                        return getColorByPercentage(value) + '80';
+                        return getColorByPercentage(value) + '80'; // + '80' คือการเติม ค่าความโปร่งใส
                     }
                     return color + '80';
                 },
+                // ✅ กำหนดสีเส้นขอบของแท่งกราฟ
                 borderColor: function(context) {
                     if (currentDisplayType === 'percentage') {
                         const value = context.parsed.y;
@@ -166,7 +183,7 @@ function createChart(canvasId, data, color, label) {
     
     // Add percentage-specific options
     if (currentDisplayType === 'percentage') {
-        config.options.scales.y.max = 120;
+        // config.options.scales.y.max = 130;
         config.options.scales.y.ticks.callback = function(value) {
             return value + '%';
         };
@@ -204,26 +221,29 @@ function updateCharts(data) {
             // Update colors and styling based on display type
             if (currentDisplayType === 'percentage') {
                 // Use percentage-based colors
+                // สีของแท่งกราฟจะถูกกำหนดตามเปอร์เซ็นต์
+                // แท่งกราฟจะมีความโปร่งใส 80% สีพื้นหลัง
                 chart.data.datasets[0].backgroundColor = data[line].map(value =>
                     getColorByPercentage(value) + '80'
                 );
+                // สีเส้นขอบของแท่งกราฟจะเป็นสีที่ไม่โปร่งใส
                 chart.data.datasets[0].borderColor = data[line].map(value =>
                     getColorByPercentage(value)
                 );
                 
                 // Update Y-axis for percentage
-                chart.options.scales.y.max = 120;
+                // chart.options.scales.y.max = 130;
                 chart.options.scales.y.ticks.callback = function(value) {
                     return value + '%';
                 };
                 
-                // Update dataset label
-                chart.data.datasets[0].label = LINE_NAMES[line] + ' %';
+                // Update dataset label charts ชื่อตรงแท่งกราฟ
+                chart.data.datasets[0].label = LINE_NAMES[line];
                 
             } else {
                 // Use original line colors
                 const originalColor = CHART_COLORS[line];
-                chart.data.datasets[0].backgroundColor = originalColor + '80';
+                chart.data.datasets[0].backgroundColor = originalColor + '80'; 
                 chart.data.datasets[0].borderColor = originalColor;
                 
                 // Reset Y-axis for pieces
@@ -233,7 +253,7 @@ function updateCharts(data) {
                 };
                 
                 // Update dataset label
-                chart.data.datasets[0].label = LINE_NAMES[line] + ' ชิ้น';
+                chart.data.datasets[0].label = LINE_NAMES[line];
             }
             
             // Force chart update with animation
@@ -267,7 +287,7 @@ async function updateSummary() {
                 if (currentDisplayType === 'percentage') {
                     // Show percentage mode
                     element.textContent = data.percentage + '%';
-                    labelElement.textContent = `${LINE_NAMES[line]} %`;
+                    labelElement.textContent = `${LINE_NAMES[line]}`;
                     
                     // Show percentage badge
                     if (percentageElement) {
@@ -290,7 +310,7 @@ async function updateSummary() {
                         setTimeout(() => {
                             element.parentElement.classList.remove('critical-animation');
                         }, 500);
-                    } else if (data.percentage >= 105) {
+                    } else if (data.percentage >= 101) {
                         element.parentElement.classList.add('excellent-animation');
                         setTimeout(() => {
                             element.parentElement.classList.remove('excellent-animation');
@@ -384,8 +404,11 @@ document.getElementById('realTimeUpdate').addEventListener('change', function() 
 
 // Toggle display type
 function toggleDisplayType() {
-    const toggle = document.getElementById('displayToggle');
-    currentDisplayType = toggle.checked ? 'percentage' : 'pieces';
+    // const toggle = document.getElementById('displayToggle');
+    // currentDisplayType = toggle.checked ? 'percentage' : 'pieces';
+    const selectedRadio = document.querySelector('input[name="displayType"]:checked');
+    currentDisplayType = selectedRadio ? selectedRadio.value : 'percentage';
+
     
     // Update existing charts instead of destroying them
     Object.keys(CHART_COLORS).forEach(line => {
@@ -395,7 +418,7 @@ function toggleDisplayType() {
         if (chart) {
             // Update chart options for display type
             if (currentDisplayType === 'percentage') {
-                chart.options.scales.y.max = 120;
+                // chart.options.scales.y.max = 130;
                 chart.options.scales.y.ticks.callback = function(value) {
                     return value + '%';
                 };
@@ -418,8 +441,15 @@ function toggleDisplayType() {
 }
 
 // Toggle Switch Event Listener
-document.getElementById('displayToggle').addEventListener('change', function() {
-    toggleDisplayType();
+// document.getElementById('displayToggle').addEventListener('change', function() {
+//     toggleDisplayType();
+// });
+
+document.querySelectorAll('input[name="displayType"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        currentDisplayType = this.value;
+        toggleDisplayType(); // ฟังก์ชันเดิมที่ใช้ update กราฟ ฯลฯ
+    });
 });
 
 // Add tooltip functionality for charts
@@ -443,8 +473,8 @@ function addChartTooltips() {
                         if (currentDisplayType === 'percentage') {
                             const percentage = context.parsed.y;
                             let status = '';
-                            if (percentage >= 105) status = '🔵 เกินเป้าหมาย';
-                            else if (percentage >= 95) status = '🟢 ตามเป้าหมาย';
+                            if (percentage >= 101) status = '🔵 เกินเป้าหมาย';
+                            else if (percentage >= 93) status = '🟢 ตามเป้าหมาย';
                             else if (percentage >= 80) status = '🟡 ใกล้เป้าหมาย';
                             else status = '🔴 ต่ำกว่าเป้าหมาย';
                             
@@ -475,9 +505,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     document.getElementById('report_date_start').value = today;
     document.getElementById('report_date_end').value = today;
 
-    // document.getElementById('displayToggle').checked = true; // ให้ toggle อยู่ในตำแหน่ง "เปอร์เซ็น"
-    // currentDisplayType = 'percentage';                       // ตั้งค่าตัวแปรให้ตรง
-    
     // Initialize empty charts first
     initializeCharts();
     
@@ -485,10 +512,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     addChartTooltips();
     
     // Load initial data
-    await loadReportData();
+    await loadReportData();    
     
     // Start real-time updates if enabled
     startRealTimeUpdate();
     
+    // ✅ เรียกให้ทำงานกับค่า default ที่เป็น percentage
+    toggleDisplayType();
+
     console.log('Sewing report system initialized');
 });
