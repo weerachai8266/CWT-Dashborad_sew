@@ -35,7 +35,7 @@
             <!-- <div class="d-flex align-items-center gap-3">
                 <img src="img/seat.png" alt="CWT Logo" style="height: 40px;">
             </div> -->
-            <span class="navbar-brand mb-0 h1 fw-semibold mx-auto">CWT Production</span>
+            <span class="navbar-brand mb-0 h1 fw-semibold mx-auto">Dashboard</span>
             <div class="d-flex align-items-center gap-3">
                 <img src="img/cwt.png" alt="CWT Logo" style="height: 40px;">
             </div>
@@ -47,30 +47,32 @@
         <nav class="sidebar">
             <ul class="nav flex-column pt-3">
                 <li class="nav-item">
-                    <a class="nav-link active" id="board-tab" data-bs-toggle="tab" href="#board" role="tab">📊 Dashboard</a>
+                    <a class="nav-link active" id="board-tab" data-bs-toggle="tab" href="#board" role="tab">📊 Production</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" id="target-tab" data-bs-toggle="tab" href="#target" role="tab">🎯 Target</a>
+                    <a class="nav-link" id="target-tab" data-bs-toggle="tab" href="#quality" role="tab">✅ Quality</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" id="report-tab" data-bs-toggle="tab" href="#report_data" role="tab">📑 Report</a>
+                    <a class="nav-link" id="performance-tab" data-bs-toggle="tab" href="#performance" role="tab">📈 Performance</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="report-tab" data-bs-toggle="tab" href="#report_data" role="tab">📝 Report</a>
                 </li>
             </ul>
         </nav>
-
 
         <!-- Main Content -->
         <div class="main-content">
             <div class="tab-content">
                 <!-- Dashboard Tab -->
                 <div class="tab-pane fade show active" id="board" role="tabpanel">
-                    <!-- Report Filter -->
-                    <div class="row " id="report-filter-form">
-                        <div class="col-md-3">
+                    <!-- production Filter -->
+                    <div class="row " id="production-filter-form">
+                        <div class="col-md-4">
                             <div class="input-group">
                                 <label class="input-group-text">วันที่</label>
-                                <input class="form-control" type="date" id="report_date_start" value="<?= date('Y-m-d') ?>">
-                                <input class="form-control" type="date" id="report_date_end" value="<?= date('Y-m-d') ?>">
+                                <input class="form-control" type="date" id="production_date_start" value="<?= date('Y-m-d') ?>">
+                                <input class="form-control" type="date" id="production_date_end" value="<?= date('Y-m-d') ?>">
                             </div>
                         </div>
                         <div class="col-md-6">                            
@@ -105,15 +107,15 @@
                         </div>
 
                         <!-- button -->
-                        <div class="col-md-3 d-flex justify-content-end gap-3 align-items-start">
+                        <div class="col-md-2 d-flex justify-content-end gap-3 align-items-start">
                             <!-- <a href="break_management.php" class="btn btn-secondary btn-sm">⚙️ จัดการเบรค</a> -->
-                            <button id="btnFilter" class="btn btn-primary">ตกลง</button>
-                            <a id="btnExport" href="#" class="btn btn-success">Excel</a>
+                            <button id="production_btnFilter" class="btn btn-primary">ตกลง</button>
+                            <!-- <a id="btnExport" href="#" class="btn btn-success">Excel</a> -->
                         </div>
                         
                     </div>  <!-- End of Report Filter -->
 
-                    <hr class="my-4">
+                    <hr class="my-2">
 
                     <!-- Loading State -->
                     <div id="loadingState" class="d-none text-center mb-3">
@@ -139,7 +141,7 @@
 
                     <!-- Summary Statistics -->
                     <!-- เดี๋ยวกลับมาแก้ฟังก์ชั่นนี้ -->
-                    <div class="row mt-4">
+                    <div class="row mt-3">
                         <div class="col-12 mb-4">
                             <div class="card">
                                 <div class="card-header bg-info text-white">
@@ -283,31 +285,211 @@
                     </div> <!-- End of Charts Row -->
                 </div>  <!-- End of Dashboard Tab -->
 
-                <!-- Report Data Tab -->
-                <div class="tab-pane fade" id="target" role="tabpanel">
+                <!-- quality Data Tab -->
+                <div class="tab-pane fade" id="quality" role="tabpanel">
+                    <!-- quality Filter -->
+                    <div class="row " id="quality-filter-form">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <label class="input-group-text">วันที่</label>
+                                <input class="form-control" type="date" id="quality_date_start" value="<?= date('Y-m-d') ?>">
+                                <input class="form-control" type="date" id="quality_date_end" value="<?= date('Y-m-d') ?>">
+                            </div>
+                        </div>
+                        <div class="col-md-4">                            
+                            <div class="col-auto d-flex align-items-center gap-3">
 
+                                <!-- auto update -->
+                                <!-- <div class="form-check mt-1">
+                                    <input type="checkbox" class="form-check-input" id="realTimeUpdate">
+                                    <label class="form-check-label" for="realTimeUpdate">AutoUpdate 30 S</label>
+                                </div> -->
+
+                                <!-- Display Type -->
+                                <!-- <div class="col-auto">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="displayType" id="radioPercentage" value="percentage" checked>
+                                        <label class="form-check-label" for="radioPercentage">
+                                            แสดงผลแบบเปอร์เซ็น
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-auto">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="displayType" id="radioPieces" value="pieces">
+                                        <label class="form-check-label" for="radioPieces">
+                                            แสดงผลแบบชิ้น
+                                        </label>
+                                    </div>
+                                </div> -->
+
+                            </div>
+                        </div>
+
+                        <!-- button -->
+                        <div class="col-md-2 d-flex justify-content-end gap-3 align-items-start">
+                            <!-- <a href="break_management.php" class="btn btn-secondary btn-sm">⚙️ จัดการเบรค</a> -->
+                            <button id="quality_btnFilter" class="btn btn-primary">ตกลง</button>
+                            <!-- <a id="btnExport" href="#" class="btn btn-success">Excel</a> -->
+                        </div>
+                    </div>  <!-- End of quality Filter -->
+                    <hr class="my-2">
                     <div class="row">
-                        <h3>Report</h3>
-                        <p>ข้อมูลรายงาน...</p>
-                    </div>
-
-                    <hr class="my-4">      
-
-                    <div class="row">
-                        <div class="col-md-12">
+                        <div class="col-12 mb-4">
                             <div class="card">
-                                <div class="card-header bg-primary text-white">
-                                    <h6 class="mb-0">📊 รายงานการผลิต</h6>
+                                <div class="card-header bg-info text-white">
+                                    <h6 class="mb-0">🔴 สรุปของเสีย</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row text-center">
+                                        <div class="col-md-2">
+                                            <div class="border rounded p-3 position-relative summary-card" data-line="fc">
+                                                <h5 class="text-success" id="qualityFC">0</h5>
+                                                <small id="labelqualityFC">F/C ชิ้น</small>
+                                                <span class="percentage-badge d-none" id="percentagequalityFC"></span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="border rounded p-3 position-relative summary-card" data-line="fb">
+                                                <h5 class="text-warning" id="qualityFB">0</h5>
+                                                <small id="labelqualityFB">F/B ชิ้น</small>
+                                                <span class="percentage-badge d-none" id="percentagequalityFB"></span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="border rounded p-3 position-relative summary-card" data-line="rc">
+                                                <h5 class="text-danger" id="qualityRC">0</h5>
+                                                <small id="labelqualityRC">R/C ชิ้น</small>
+                                                <span class="percentage-badge d-none" id="percentagequalityRC"></span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="border rounded p-3 position-relative summary-card" data-line="rb">
+                                                <h5 style="color: #6f42c1;" id="qualityRB">0</h5>
+                                                <small id="labelqualityRB">R/B ชิ้น</small>
+                                                <span class="percentage-badge d-none" id="percentagequalityRB"></span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="border rounded p-3 position-relative summary-card" data-line="third">
+                                                <h5 style="color: #fd7e14;" id="quality3RD">0</h5>
+                                                <small id="labelquality3RD">3RD ชิ้น</small>
+                                                <span class="percentage-badge d-none" id="percentagequality3RD"></span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="border rounded p-3 position-relative summary-card" data-line="sub">
+                                                <h5 style="color: #20c997;" id="qualitySUB">0</h5>
+                                                <small id="labelqualitySUB">Sub ชิ้น</small>
+                                                <span class="percentage-badge d-none" id="percentagequalitySUB"></span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>                        
+                        </div>
+                    </div>  <!-- End of Summary Statistics -->
+
+                    <!-- Charts Container -->
+                    <!-- กราฟสรุปของเสียแยกตามไลน์ -->
+                    <div class="row mb-4">
+                        <div class="col-6 mb-4">
+                            <div class="card line-card">
+                                <div class="card-header bg-primary text-white">
+                                    <h6 class="mb-0">📊 Production Line</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="lineDefectsChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- กราฟสรุปของเสียแยกตามปัญหา -->
+                        <div class="col-6 mb-4">
+                            <div class="card line-card">
+                                <div class="card-header bg-warning text-dark">
+                                    <h6 class="mb-0">📊 Problem Type</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="problemDefectsChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- กราฟสรุปของเสียแยกตามโมเดล -->
+                        <div class="col-6 mb-4">
+                            <div class="card line-card">
+                                <div class="card-header bg-success text-white">
+                                    <h6 class="mb-0">📊 Model</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="modelDefectsChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-4">
+                            <div class="card line-card">
+                                <div class="card-header bg-info text-white">
+                                    <h6 class="mb-0">📈 Timeline of Defects</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="timelineDefectsChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>  <!-- End of Charts Container -->
+                </div>
+
+                <!-- Performance Data Tab -->
+                <div class="tab-pane fade" id="performance" role="tabpanel">
+                    <div class="container-fluid px-3 mt-4">
+                        <div class="row">
+                            <div class="col-12">
+                                <h3>Performance</h3>
+                                <p>Performance...</p>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="card">
+                                    <div class="card-header bg-primary text-white">
+                                        <h6 class="mb-0">📊 รายงานการผลิต</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <p>เนื้อหาในแท็บ Target...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div> <!-- End of Report Data Tab -->
+                </div>  <!-- End of Report Data Tab -->
 
                 <!-- Report Data Tab -->
                 <div class="tab-pane fade" id="report_data" role="tabpanel">
-                    <h3>Report</h3>
-                    <p>ข้อมูลรายงาน...</p>
+                    <div class="container-fluid px-3 mt-4">
+                        <!-- Report Filter -->
+                        <div class="row " id="report-filter-form">
+                            <div class="col-md-6">
+                                <div class="input-group">
+                                    <label class="input-group-text">วันที่</label>
+                                    <input class="form-control" type="date" id="report_date_start" value="<?= date('Y-m-d') ?>">
+                                    <input class="form-control" type="date" id="report_date_end" value="<?= date('Y-m-d') ?>">
+                                </div>
+                            </div>
+
+                            <!-- button -->
+                            <div class="col-md-6 d-flex justify-content-end gap-3 align-items-start">
+                                <!-- <a href="break_management.php" class="btn btn-secondary btn-sm">⚙️ จัดการเบรค</a> -->
+                                <!-- <button id="btnFilter" class="btn btn-primary">ตกลง</button> -->
+                                <a id="btnExport" href="#" class="btn btn-success">Excel</a>
+                            </div>
+                            
+                        </div>  <!-- End of Report Filter -->
+
+                        <hr class="my-2">
+                    </div>
                 </div>  <!-- End of Report Data Tab -->
 
             </div>  <!-- End of Tab Content -->

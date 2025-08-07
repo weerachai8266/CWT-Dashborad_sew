@@ -35,6 +35,13 @@ const PERCENTAGE_COLORS = {
     excellent: '#007bff'    // 105%+
 };
 
+function getStatusEmoji(percentage) {
+    if (percentage >= 101) return '🔵';
+    if (percentage >= 93) return '🟢';
+    if (percentage >= 80) return '🟡';
+    return '🔴';
+}
+
 // Get color based on percentage
 function getColorByPercentage(percentage) {
     if (percentage >= 101) return PERCENTAGE_COLORS.excellent;
@@ -52,10 +59,10 @@ function getPercentageClass(percentage) {
 }
 
 
-// API Functions
+// API Functions production
 async function fetchReportData(type = 'hourly') {
-    const startDate = document.getElementById('report_date_start').value;
-    const endDate = document.getElementById('report_date_end').value;
+    const startDate = document.getElementById('production_date_start').value;
+    const endDate = document.getElementById('production_date_end').value;
     
     try {
         showLoading(true);
@@ -83,7 +90,60 @@ async function fetchReportData(type = 'hourly') {
         showLoading(false);
     }
 }
+// API Functions quality
+async function fetchQualityData() {
 
+    const start_date = document.getElementById('quality_date_start').value;
+    const end_date = document.getElementById('quality_date_end').value;
+
+    fetch(`api/get_defects_data.php?start_date=${start_date}&end_date=${end_date}`)
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // ตรวจสอบว่ามีข้อมูลหรือไม่
+            if (data.line_data.length === 0 && 
+                data.problem_data.length === 0 && 
+                data.model_data.length === 0) {
+                console.log('No data available for selected date range');
+                return;
+            }
+
+            // สร้างกราฟแยกตามไลน์
+            createParetoChart('lineDefectsChart', 
+                data.line_data.map(d => d.count),
+                data.line_data.map(d => d.process),
+                'Defects by Production Line'
+            );
+
+            // สร้างกราฟแยกตามปัญหา
+            createParetoChart('problemDefectsChart',
+                data.problem_data.map(d => d.count),
+                data.problem_data.map(d => d.detail),
+                'Defects by Problem Type'
+            );
+
+            // สร้างกราฟแยกตามโมเดล
+            createParetoChart('modelDefectsChart',
+                data.model_data.map(d => d.count),
+                data.model_data.map(d => d.model),
+                'Defects by Model'
+            );
+            // สร้างกราฟแนวโน้มของเสียตามช่วงเวลา
+            createTimelineChart(data.timeline_data);
+        } else {
+            console.error('API Error:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        // alert('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + error.message);
+    });
+}
 // UI Helper Functions
 function showLoading(show = true) {
     const loadingState = document.getElementById('loadingState');
@@ -267,7 +327,7 @@ function updateCharts(data) {
     }, 100);
 }
 
-// Update summary totals
+// Update product summary totals
 async function updateSummary() {
     try {
         const summaryData = await fetchReportData('summary');
@@ -319,12 +379,13 @@ async function updateSummary() {
                     
                 } else {
                     // Show pieces mode
-                    element.textContent = data.total_qty || 0;
-                    labelElement.textContent = `${LINE_NAMES[line]} ชิ้น`;
+                    element.textContent = data.total_qty + ' ชิ้น'|| 0 + ' ชิ้น';
+                    labelElement.textContent = `${LINE_NAMES[line]}`;
                     
                     // Hide percentage badge
                     if (percentageElement) {
-                        percentageElement.classList.add('d-none');
+                        percentageElement.textContent = `${data.percentage} %`; // เพิ่มเปอร์เซ็นต์
+                        percentageElement.classList.remove('d-none');   // แสดงเปอร์เซ็นต์ เดิม .add('d-none');
                     }
                     
                     // Reset to original colors
@@ -347,6 +408,271 @@ async function updateSummary() {
         console.error('Error updating summary:', error);
     }
 }
+// quality summary
+async function updateQualityCards(data) {
+    try {
+        // แปลงข้อมูลจาก array เป็น object ที่จัดกลุ่มตาม process
+        const processData = {};
+        data.line_data.forEach(item => {
+            // แปลง process name ให้เป็น key ที่ใช้ในระบบ
+            let key = item.process.toLowerCase().replace('/', '');
+            processData[key] = {
+                total_qty: item.count
+            };
+        });
+        // ดึงข้อมูลการผลิตจาก summary
+        const summaryData = await fetchReportData('summary');
+
+        const lines = ['fc', 'fb', 'rc', 'rb', 'third', 'sub'];
+        
+        lines.forEach(line => {
+            const elementId = line === 'third' ? 'quality3RD' : `quality${line.toUpperCase()}`;
+            const labelId = line === 'third' ? 'labelquality3RD' : `labelquality${line.toUpperCase()}`;
+            const qualityId = line === 'third' ? 'percentagequality3RD' : `percentagequality${line.toUpperCase()}`;
+            
+            const element = document.getElementById(elementId);
+            const labelElement = document.getElementById(labelId);
+            const qualityElement = document.getElementById(qualityId);
+            
+            if (element) {
+                // ดึงข้อมูลจาก processData หรือใส่ค่า default เป็น 0
+                const lineData = processData[line] || { total_qty: 0 };
+                const productionData = summaryData[line] || { total_qty: 0 };
+                
+                // คำนวณเปอร์เซ็นต์ของเสีย
+                const defectPercentage = productionData.total_qty > 0 
+                    ? ((lineData.total_qty / productionData.total_qty) * 100).toFixed(2)
+                    : 0;
+
+                // อัพเดตจำนวนชิ้น
+                element.textContent = lineData.total_qty;
+                
+                // อัพเดต label
+                if (qualityElement) {
+                    qualityElement.textContent = `${defectPercentage}%`;
+                    qualityElement.classList.remove('d-none');
+                    
+                    // เพิ่มสีตามเปอร์เซ็นต์ของเสีย
+                    if (defectPercentage > 5) {
+                        qualityElement.className = 'percentage-badge percentage-critical';
+                    } else if (defectPercentage > 3) {
+                        qualityElement.className = 'percentage-badge percentage-warning';
+                    } else {
+                        qualityElement.className = 'percentage-badge percentage-good';
+                    }
+                }
+
+                // อัพเดตเปอร์เซ็นต์ของเสีย
+                if (qualityElement) {
+                    qualityElement.textContent = `${defectPercentage} %`;
+                }
+                
+                // อัพเดต animation
+                element.classList.add('pulse-animation');
+                setTimeout(() => {
+                    element.classList.remove('pulse-animation');
+                }, 500);
+            }
+        });
+        
+        console.log('Quality cards updated successfully');
+        
+    } catch (error) {
+        console.error('Error updating quality cards:', error);
+    }
+}
+
+// Quality functions
+function createParetoChart(canvasId, data, labels, title) {
+    // Check if canvas exists
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) {
+        console.error(`Canvas element ${canvasId} not found`);
+        return;
+    }
+    // Clear existing chart if it exists
+    const existingChart = Chart.getChart(canvasId);
+    if (existingChart) {    
+        existingChart.destroy();
+    }
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    
+    // คำนวณค่าสะสม
+    const total = data.reduce((a, b) => a + b, 0);
+    let cumulative = 0;
+    const cumulativePercentage = data.map(value => {
+        cumulative += value;
+        return Number(((cumulative / total) * 100).toFixed(1));
+    });
+
+    new Chart(ctx, {
+        type: 'bar',
+        plugins: [ChartDataLabels], // ✅ เปิด plugin
+        data: {
+            labels: labels,            
+            datasets: [
+                {
+                    label: 'จำนวนของเสีย',
+                    data: data,
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 2,
+                    borderRadius: 4,
+                    fill: true,
+                    order: 2
+                },
+                {
+                    label: 'Cumulative %',
+                    data: cumulativePercentage,
+                    type: 'line',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 2,
+                    fill: false,
+                    order: 1,
+                    yAxisID: 'percentage'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                datalabels: {
+                    anchor: 'start',
+                    align: 'top',                    
+                    color: '#333',
+                    formatter: function(value, context) {
+                        // ตรวจสอบว่าเป็นข้อมูลจาก dataset ไหน
+                        if (context.datasetIndex === 0) {
+                            // กราฟแท่ง (จำนวนของเสีย)
+                            return value + ' ชิ้น';
+                        } else {
+                            // กราฟเส้น (เปอร์เซ็นต์สะสม)
+                            return value.toFixed(1) + '%';
+                        }
+                    },
+                    font: {
+                        size: 12,
+                        weight: 'bold'
+                    }
+                },
+                title: {
+                    display: false,
+                    text: title
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        callback: function(value, index) {
+                            const label = labels[index];
+                            // ตัดข้อความให้แสดงแค่ 15 ตัวอักษร
+                            return label.length > 10 ? label.substr(0, 10) + '...' : label;
+                        }
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    position: 'left',
+                    max: Math.max(...data) + 3, // เพิ่ม margin ให้สูงสุด
+                    title: {
+                        display: true,
+                        text: 'จำนวนของเสีย (ชิ้น)'
+                    },
+                    ticks: {
+                        stepSize: 2,
+                    }
+                },
+                percentage: {
+                    beginAtZero: true,
+                    position: 'right',
+                    max: 120,
+                    title: {
+                        display: true,
+                        text: 'Cumulative %'
+                    }
+                }
+            }
+        }
+    });
+}
+// Create timeline chart for defects over time
+// ประโยชน์ของกราฟนี้:
+// 1.แสดงแนวโน้มของเสียว่าเพิ่มขึ้นหรือลดลงตามเวลา
+// 2.เห็น Pattern การเกิดของเสียในแต่ละช่วงเวลา
+// 3.สามารถระบุวันที่มีของเสียสูงผิดปกติ
+// 4.ช่วยในการวางแผนปรับปรุงกระบวนการผลิต
+// 5.เมื่อ Hover ที่จุดข้อมูล จะเห็นรายละเอียดว่าเกิดของเสียที่ไลน์ไหนบ้าง
+// คุณสามารถใช้ข้อมูลนี้วิเคราะห์ Pattern การเกิดของเสีย และวางแผนป้องกันได้อย่างมีประสิทธิภาพมากขึ้นครับ
+function createTimelineChart(data) {
+    const ctx = document.getElementById('timelineDefectsChart').getContext('2d');
+    
+    const dates = data.map(item => item.defect_date);
+    const counts = data.map(item => item.total_defects);
+
+    new Chart(ctx, {
+        type: 'line',
+        plugins: [ChartDataLabels],
+        data: {
+            labels: dates,
+            datasets: [{
+                label: 'จำนวนของเสียรวม',
+                data: counts,
+                borderColor: 'rgba(75, 192, 192, 1)',
+                tension: 0.3,
+                fill: true,
+                backgroundColor: 'rgba(75, 192, 192, 0.2)'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                datalabels: {
+                    anchor: 'start',
+                    align: 'top',                    
+                    color: '#333',
+                    formatter: function(value) {
+                        return value + ' ชิ้น';
+                    },
+                    font: {
+                        size: 12,
+                        weight: 'bold'
+                    }
+                },
+                title: {
+                    display: false,
+                    text: 'แนวโน้มของเสียตามช่วงเวลา'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const dataPoint = data[context.dataIndex];
+                            return [
+                                `จำนวนของเสีย: ${context.parsed.y} ชิ้น`,
+                                `ไลน์ที่พบ: ${dataPoint.processes}`
+                            ];
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'วันที่'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'จำนวนของเสีย (ชิ้น)'
+                    }
+                }
+            }
+        }   
+    });
+}
+
 
 // Load and display report data
 async function loadReportData() {
@@ -357,7 +683,38 @@ async function loadReportData() {
         
         // Load summary data
         await updateSummary();
+
+        console.log('Report data loaded successfully');
         
+    } catch (error) {
+        console.error('Error loading report data:', error);
+    }
+}
+// Load quality data
+// Load and display report data
+async function loadQualityData() {
+    try {
+        // Load quality data for charts
+        await fetchQualityData();
+
+        const start_date = document.getElementById('quality_date_start').value;
+        const end_date = document.getElementById('quality_date_end').value;
+
+        // เปลี่ยนจาก fetch เป็น await fetch
+        const response = await fetch(`api/get_defects_data.php?start_date=${start_date}&end_date=${end_date}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+
+        if (data.success) {
+            // อัปเดต Quality Cards ก่อน
+            await updateQualityCards(data);
+
+            console.log('Quality data loaded successfully',data);
+        } else {
+            console.error('API Error:', data.message);
+        }
         console.log('Report data loaded successfully');
         
     } catch (error) {
@@ -382,8 +739,12 @@ function startRealTimeUpdate() {
 }
 
 // Event Listeners
-document.getElementById('btnFilter').addEventListener('click', async function() {
+document.getElementById('production_btnFilter').addEventListener('click', async function() {
     await loadReportData();
+});
+
+document.getElementById('quality_btnFilter').addEventListener('click', async function() {
+    await loadQualityData();
 });
 
 document.getElementById('btnExport').addEventListener('click', function(e) {
@@ -439,11 +800,6 @@ function toggleDisplayType() {
     
     console.log('Display type changed to:', currentDisplayType);
 }
-
-// Toggle Switch Event Listener
-// document.getElementById('displayToggle').addEventListener('change', function() {
-//     toggleDisplayType();
-// });
 
 document.querySelectorAll('input[name="displayType"]').forEach(radio => {
     radio.addEventListener('change', function() {
@@ -502,6 +858,10 @@ function updateChartTooltips() {
 document.addEventListener('DOMContentLoaded', async function() {
     // Set default dates to today
     const today = new Date().toISOString().split('T')[0];
+    document.getElementById('production_date_start').value = today;
+    document.getElementById('production_date_end').value = today;
+    document.getElementById('quality_date_start').value = today;
+    document.getElementById('quality_date_end').value = today;
     document.getElementById('report_date_start').value = today;
     document.getElementById('report_date_end').value = today;
 
@@ -512,8 +872,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     addChartTooltips();
     
     // Load initial data
-    await loadReportData();    
-    
+    await loadReportData();
+    // await loadQualityData();
+
     // Start real-time updates if enabled
     startRealTimeUpdate();
     

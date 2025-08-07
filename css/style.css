@@ -160,3 +160,23 @@ body {
 .pulse-animation {
     animation: pulse 2s infinite;
 }
+/* Background coloring for entire table rows by productivity percentage */
+tr.percentage-critical {
+    background-color: #f8d7da !important;  /* แดงอ่อน */
+    color: #721c24;
+}
+
+tr.percentage-warning {
+    background-color: #fff3cd !important;  /* เหลืองอ่อน */
+    color: #856404;
+}
+
+tr.percentage-good {
+    background-color: #d4edda !important;  /* เขียวอ่อน */
+    color: #155724;
+}
+
+tr.percentage-excellent {
+    background-color: #cfe2ff !important;  /* น้ำเงินอ่อน */
+    color: #084298;
+}
