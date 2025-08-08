@@ -420,8 +420,14 @@ async function updateQualityCards(data) {
                 total_qty: item.count
             };
         });
-        // ดึงข้อมูลการผลิตจาก summary
-        const summaryData = await fetchReportData('summary');
+        // ดึงข้อมูลการผลิตตามวันที่ใน quality filter แทน
+        const start_date = document.getElementById('quality_date_start').value;
+        const end_date = document.getElementById('quality_date_end').value;
+
+        // สร้าง URL สำหรับดึงข้อมูลการผลิตตามวันที่ quality
+        const productionResponse = await fetch(`${API_BASE}?type=summary&start_date=${start_date}&end_date=${end_date}&display_type=pieces`);
+        const productionResult = await productionResponse.json();
+        const summaryData = productionResult.success ? productionResult.data : {};
 
         const lines = ['fc', 'fb', 'rc', 'rb', 'third', 'sub'];
         
@@ -446,7 +452,10 @@ async function updateQualityCards(data) {
 
                 // อัพเดตจำนวนชิ้น
                 element.textContent = lineData.total_qty;
-                
+
+                // แสดงข้อมูลเพิ่มเติมใน console สำหรับ debug
+                console.log(`Line ${line}: Defects=${lineData.total_qty}, Production=${productionData.total_qty}, Percentage=${defectPercentage}%`);
+                                
                 // อัพเดต label
                 if (qualityElement) {
                     qualityElement.textContent = `${defectPercentage}%`;
@@ -497,8 +506,15 @@ function createParetoChart(canvasId, data, labels, title) {
     }
     const ctx = document.getElementById(canvasId).getContext('2d');
     
-    // คำนวณค่าสะสม
+    // คำนวณค่าต่างๆ
     const total = data.reduce((a, b) => a + b, 0);
+
+    // คำนวณเปอร์เซ็นต์ของแต่ละรายการ
+    const individualPercentage = data.map(value => 
+        Number(((value / total) * 100).toFixed(1))
+    );
+
+    // คำนวณเปอร์เซ็นต์สะสม
     let cumulative = 0;
     const cumulativePercentage = data.map(value => {
         cumulative += value;
@@ -543,16 +559,34 @@ function createParetoChart(canvasId, data, labels, title) {
                     formatter: function(value, context) {
                         // ตรวจสอบว่าเป็นข้อมูลจาก dataset ไหน
                         if (context.datasetIndex === 0) {
-                            // กราฟแท่ง (จำนวนของเสีย)
-                            return value + ' ชิ้น';
+                            // กราฟแท่ง - แสดงทั้งจำนวนและเปอร์เซ็นต์
+                            const percentage = individualPercentage[context.dataIndex];
+                            return [`${value} ชิ้น`, `(${percentage}%)`];
                         } else {
                             // กราฟเส้น (เปอร์เซ็นต์สะสม)
                             return value.toFixed(1) + '%';
                         }
                     },
                     font: {
-                        size: 12,
+                        size: 11,
                         weight: 'bold'
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            if (context.datasetIndex === 0) {
+                                const value = context.parsed.y;
+                                const percentage = individualPercentage[context.dataIndex];
+                                return [
+                                    `จำนวนของเสีย: ${value} ชิ้น`,
+                                    `เปอร์เซ็นต์: ${percentage}%`,
+                                    `จากทั้งหมด: ${total} ชิ้น`
+                                ];
+                            } else {
+                                return `เปอร์เซ็นต์สะสม: ${context.parsed.y}%`;
+                            }
+                        }
                     }
                 },
                 title: {
