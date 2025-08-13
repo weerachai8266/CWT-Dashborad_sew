@@ -53,7 +53,7 @@
                     <a class="nav-link" id="quality-tab" data-bs-toggle="tab" href="#quality" role="tab">✅ Quality</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" id="performance-tab" data-bs-toggle="tab" href="#performance" role="tab">📈 Performance [Beta]</a>
+                    <a class="nav-link" id="performance-tab" data-bs-toggle="tab" href="#performance" role="tab">📈 Performance</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" id="report-tab" data-bs-toggle="tab" href="#report_data" role="tab">📝 Report [Beta]</a>
@@ -68,11 +68,11 @@
                 <div class="tab-pane fade show active" id="production" role="tabpanel">
                     <!-- production Filter -->
                     <div class="row " id="production-filter-form">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="input-group">
                                 <label class="input-group-text">วันที่</label>
                                 <input class="form-control" type="date" id="production_date_start" value="<?= date('Y-m-d') ?>">
-                                <input class="form-control" type="date" id="production_date_end" value="<?= date('Y-m-d') ?>">
+                                <!-- <input class="form-control" type="date" id="production_date_end" value="<?= date('Y-m-d') ?>"> -->
                             </div>
                         </div>
                         <div class="col-md-6">                            
@@ -107,10 +107,10 @@
                         </div>
 
                         <!-- button -->
-                        <div class="col-md-2 d-flex justify-content-end gap-3 align-items-start">
+                        <div class="col-md-3 d-flex justify-content-end gap-3 align-items-start">
                             <!-- <a href="break_management.php" class="btn btn-secondary btn-sm">⚙️ จัดการเบรค</a> -->
                             <button id="production_btnFilter" class="btn btn-primary">ตกลง</button>
-                            <!-- <a id="btnExport" href="#" class="btn btn-success">Excel</a> -->
+                            <button class="btn btn-success btn-export-date" data-module="production">Export</button>
                         </div>
                         
                     </div>  <!-- End of Report Filter -->
@@ -329,9 +329,8 @@
 
                         <!-- button -->
                         <div class="col-md-2 d-flex justify-content-end gap-3 align-items-start">
-                            <!-- <a href="break_management.php" class="btn btn-secondary btn-sm">⚙️ จัดการเบรค</a> -->
                             <button id="quality_btnFilter" class="btn btn-primary">ตกลง</button>
-                            <!-- <a id="btnExport" href="#" class="btn btn-success">Excel</a> -->
+                            <button class="btn btn-success btn-export-date" data-module="quality">Export</button>
                         </div>
                     </div>  <!-- End of quality Filter -->
                     <hr class="my-2">
@@ -466,6 +465,7 @@
                         </div>
                         <div class="col-md-2 d-flex justify-content-end gap-3 align-items-start">
                             <button id="performance_btnFilter" class="btn btn-primary">ตกลง</button>
+                            <button class="btn btn-success btn-export-date" data-module="performance">Export</button>
                         </div>
                     </div>
                     <hr class="my-2">
@@ -569,7 +569,7 @@
                     <div class="container-fluid px-3 mt-4">
                         <!-- Report Filter -->
                         <div class="row " id="report-filter-form">
-                            <div class="col-md-6">
+                            <div class="col-md-10">
                                 <div class="input-group">
                                     <label class="input-group-text">วันที่</label>
                                     <input class="form-control" type="date" id="report_date_start" value="<?= date('Y-m-d') ?>">
@@ -578,10 +578,8 @@
                             </div>
 
                             <!-- button -->
-                            <div class="col-md-6 d-flex justify-content-end gap-3 align-items-start">
-                                <!-- <a href="break_management.php" class="btn btn-secondary btn-sm">⚙️ จัดการเบรค</a> -->
-                                <!-- <button id="btnFilter" class="btn btn-primary">ตกลง</button> -->
-                                <a id="btnExport" href="#" class="btn btn-success">Excel</a>
+                            <div class="col-md-2 d-flex justify-content-end gap-3 align-items-start">
+                                <a id="btnExport" href="#" class="btn btn-success">Export</a>
                             </div>
                             
                         </div>  <!-- End of Report Filter -->

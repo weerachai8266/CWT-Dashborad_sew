@@ -37,6 +37,24 @@ try {
     // สร้าง instance ของ get_db class
     $db_handler = new get_db($conn);
     
+    // ✅ ฟังก์ชันช่วยคำนวณ target หลายวัน
+    function computeLineTarget($db_handler, $hourly_target_rate, $start_date, $end_date) {
+        if ($hourly_target_rate <= 0) return 0;
+        $line_target = 0;
+        $d1 = new DateTime($start_date);
+        $d2 = new DateTime($end_date);
+        while ($d1 <= $d2) {
+            $day = $d1->format('Y-m-d');
+            $hours = $db_handler->getWorkingHours($day, $day); // ชั่วโมงของวันนั้น (หักเบรก)
+            foreach ($hours as $h) {
+                $mins = $db_handler->getActualWorkingMinutes($h);
+                $line_target += round(($hourly_target_rate * $mins) / 60);
+            }
+            $d1->modify('+1 day');
+        }
+        return $line_target;
+    }
+
     // คำนวณ Performance KPIs โดยใช้ data.class.php + การคำนวณคุณภาพเดิม
     function calculatePerformanceKPIs($db_handler, $conn, $start_date, $end_date) {
         $kpis = [
@@ -45,116 +63,74 @@ try {
             'productivity_rate' => 0,
             'defect_rate' => 0
         ];
-        
         try {
-            // ✅ ใช้ getSummaryReport จาก data.class.php
             $summary_data = $db_handler->getSummaryReport($start_date, $end_date, 'pieces');
-            
             if ($summary_data) {
                 $total_actual = 0;
                 $total_target = 0;
 
-                // ✅ ดึงชั่วโมงทำงานจริง
-                $working_hours = $db_handler->getWorkingHours($start_date, $end_date);
-                $hours_count = count($working_hours); // จำนวนชั่วโมงทำงาน
-                
-                // ✅ ดึงจำนวนพนักงานจริงจากตาราง sewing_man_act
-                $total_employees = 0;
-                $total_working_hours = 0;
-                
+                // ✅ ดึง manpower (เหมือนเดิม)
+                $total_employees_man_hours = 0;
                 try {
-                    $sql_manpower = "SELECT fc_act, fb_act, rc_act, rb_act, 3rd_act as third_act, sub_act 
-                                FROM sewing_man_act 
-                                WHERE DATE(created_at) BETWEEN ? AND ?
-                                ORDER BY created_at DESC";
-                    
+                    $sql_manpower = "SELECT DATE(created_at) as d, thour,
+                                            fc_act, fb_act, rc_act, rb_act, 3rd_act as third_act, sub_act
+                                    FROM sewing_man_act
+                                    WHERE DATE(created_at) BETWEEN ? AND ?
+                                    ORDER BY d, thour";
                     $stmt = $conn->prepare($sql_manpower);
                     $stmt->execute([$start_date, $end_date]);
-                    $manpower_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                    
-                    // คำนวณจำนวนพนักงาน × ชั่วโมง รวม
-                    foreach ($manpower_data as $mp) {
-                        $hour_employees = (int)($mp['fc_act'] ?? 0) + 
-                                        (int)($mp['fb_act'] ?? 0) + 
-                                        (int)($mp['rc_act'] ?? 0) + 
-                                        (int)($mp['rb_act'] ?? 0) + 
-                                        (int)($mp['third_act'] ?? 0) + 
-                                        (int)($mp['sub_act'] ?? 0);
-                        
-                        if ($hour_employees > 0) {
-                            $total_employees += $hour_employees;
-                            $total_working_hours += 1; // 1 ชั่วโมง
-                        }                        
+                    $mp_rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                    foreach ($mp_rows as $r) {
+                        $sum = (int)$r['fc_act'] + (int)$r['fb_act'] + (int)$r['rc_act'] + (int)$r['rb_act']
+                            + (int)$r['third_act'] + (int)$r['sub_act'];
+                        if ($sum > 0) $total_employees_man_hours += $sum; // man-hours (1 ชั่วโมงต่อแถว)
                     }
-                    
                 } catch (PDOException $e) {
-                    error_log("Error getting manpower data: " . $e->getMessage());
-                    // ใช้ค่า default ถ้าไม่มีข้อมูล
-                    $total_employees = 4 * count($working_hours); // 4 คน × 9 ชั่วโมง
-                    $total_working_hours = count($working_hours);
+                    error_log("Manpower fallback: ".$e->getMessage());
                 }
 
-                // รวมข้อมูลจากทุกไลน์
                 foreach ($summary_data as $line => $data) {
-                    $total_actual += (int)($data['total_qty'] ?? 0);
+                    $actual = (int)($data['total_qty'] ?? 0);
+                    $total_actual += $actual;
 
-                    // ✅ คำนวณเป้าหมายจากเวลาทำงานจริง (หักเบรกแล้ว)
-                    $hourly_target_rate = (int)($data['target'] ?? 0); // 10 ชิ้น/ชั่วโมง
-                    $line_target = 0;
-                    
-                    foreach ($working_hours as $hour) {
-                        // ดึงเวลาทำงานจริงในชั่วโมงนี้ (หักเบรกแล้ว)
-                        $actual_working_minutes = $db_handler->getActualWorkingMinutes($hour);
-                        // คำนวณเป้าหมายสำหรับชั่วโมงนี้
-                        $line_target += round(($hourly_target_rate * $actual_working_minutes) / 60);
-                    }
+                    $hourly_target_rate = (int)($data['target'] ?? 0);
+                    if ($hourly_target_rate == 0) $hourly_target_rate = 49; // fallback
 
+                    // ✅ ใช้ฟังก์ชันใหม่สำหรับหลายวัน
+                    $line_target = computeLineTarget($db_handler, $hourly_target_rate, $start_date, $end_date);
                     $total_target += $line_target;
                 }
-                // คำนวณ Overall Efficiency
+
                 if ($total_target > 0) {
-                    $overall_efficiency = ($total_actual / $total_target) * 100;
-                    $kpis['overall_efficiency'] = round($overall_efficiency, 2);
+                    $eff = ($total_actual / $total_target) * 100;
+                    $kpis['overall_efficiency'] = round($eff, 2);
                 }
-                // ✅ คำนวณ Productivity = Output ÷ Total Man-Hours
-                if ($total_employees > 0) {
-                    $productivity = $total_actual / $total_employees;
-                    $kpis['productivity_rate'] = round($productivity, 2);
-                    
-                    error_log("Productivity calculation:");
-                    error_log("- Total Output: $total_actual");
-                    error_log("- Total Man-Hours: $total_employees");
-                    error_log("- Productivity (Output/Man-Hour): " . $kpis['productivity_rate']);
-                } else {
-                    $kpis['productivity_rate'] = 0;
+
+                // Productivity = Output / Man-Hours
+                if ($total_employees_man_hours > 0) {
+                    $kpis['productivity_rate'] = round($total_actual / $total_employees_man_hours, 2);
                 }
-                // ✅ ใช้การคำนวณคุณภาพแบบเดิม
+
+                // Defects & Quality
                 try {
                     $sql_defects = "SELECT SUM(qty) as defect_count FROM qc_ng 
-                                   WHERE DATE(created_at) BETWEEN ? AND ?";
+                                    WHERE DATE(created_at) BETWEEN ? AND ?";
                     $stmt = $conn->prepare($sql_defects);
                     $stmt->execute([$start_date, $end_date]);
-                    $defects_data = $stmt->fetch(PDO::FETCH_ASSOC);
-                    $total_defects = (int)($defects_data['defect_count'] ?? 0);
-                    
+                    $def = (int)($stmt->fetch(PDO::FETCH_ASSOC)['defect_count'] ?? 0);
                     if ($total_actual > 0) {
-                        $kpis['defect_rate'] = round(($total_defects / $total_actual) * 100, 2);
-                        $kpis['quality_rate'] = round((($total_actual - $total_defects) / $total_actual) * 100, 2);
+                        $kpis['defect_rate'] = round(($def / $total_actual) * 100, 2);
+                        $kpis['quality_rate'] = round((($total_actual - $def) / $total_actual) * 100, 2);
                     } else {
                         $kpis['quality_rate'] = 100;
-                        $kpis['defect_rate'] = 0;
                     }
                 } catch (PDOException $e) {
-                    error_log("Error getting defect data: " . $e->getMessage());
-                    $kpis['quality_rate'] = 100;
-                    $kpis['defect_rate'] = 0;
+                    error_log("Defects error: ".$e->getMessage());
                 }
             }
-            
         } catch (Exception $e) {
-            error_log("Error calculating KPIs: " . $e->getMessage());
+            error_log("KPI calc error: ".$e->getMessage());
         }
-        
         return $kpis;
     }
     
@@ -236,41 +212,28 @@ try {
     // ดึงข้อมูล Line Performance โดยใช้ data.class.php
     function getLinePerformance($db_handler, $start_date, $end_date) {
         $line_performance = [];
-        
         try {
-            // ✅ ใช้ getSummaryReport จาก data.class.php
             $summary_data = $db_handler->getSummaryReport($start_date, $end_date, 'pieces');
-            
             if ($summary_data) {
-                // ✅ ดึงชั่วโมงทำงานจริง
-                $working_hours = $db_handler->getWorkingHours($start_date, $end_date);
-                $hours_count = count($working_hours); // จำนวนชั่วโมงทำงาน
-            
                 foreach ($summary_data as $line => $data) {
-                    $process_name = strtoupper($line === 'third' ? '3RD' : $line);
-                    
-                    // ✅ คำนวณเป้าหมายจากเวลาทำงานจริง (หักเบรกแล้ว)
                     $hourly_target_rate = (int)($data['target'] ?? 0);
-                    $line_target = 0;
-                    
-                    foreach ($working_hours as $hour) {
-                        $actual_working_minutes = $db_handler->getActualWorkingMinutes($hour);
-                        $line_target += round(($hourly_target_rate * $actual_working_minutes) / 60);
-                    }
+                    if ($hourly_target_rate == 0) $hourly_target_rate = 49;
+                    $line_target = computeLineTarget($db_handler, $hourly_target_rate, $start_date, $end_date);
+
+                    $actual = (int)($data['total_qty'] ?? 0);
+                    $eff = $line_target > 0 ? ($actual / $line_target) * 100 : 0;
 
                     $line_performance[] = [
-                        'process' => $process_name,
-                        'actual_qty' => (int)($data['total_qty'] ?? 0),
-                        'target_qty' => $line_target, // ✅ ใช้ค่าที่คำนวณจากเวลาจริง
-                        'efficiency' => round($data['percentage'] ?? 0, 2)
+                        'process' => strtoupper($line === 'third' ? '3RD' : $line),
+                        'actual_qty' => $actual,
+                        'target_qty' => $line_target,
+                        'efficiency' => round($eff, 2)
                     ];
                 }
             }
-            
         } catch (Exception $e) {
-            error_log("Error getting line performance: " . $e->getMessage());
+            error_log("Line perf error: ".$e->getMessage());
         }
-        
         return $line_performance;
     }
     

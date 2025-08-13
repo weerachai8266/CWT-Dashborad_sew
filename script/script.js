@@ -62,13 +62,13 @@ function getPercentageClass(percentage) {
 // 1. API Functions production
 async function fetchReportData(type = 'hourly') {
     const startDate = document.getElementById('production_date_start').value;
-    const endDate = document.getElementById('production_date_end').value;
+    // const endDate = document.getElementById('production_date_end').value;
     
     try {
         showLoading(true);
         hideError();
         
-        const response = await fetch(`${API_BASE}?type=${type}&start_date=${startDate}&end_date=${endDate}&display_type=${currentDisplayType}`);
+        const response = await fetch(`${API_BASE}?type=${type}&start_date=${startDate}&end_date=${startDate}&display_type=${currentDisplayType}`);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -822,7 +822,6 @@ function updateKPIColors(elementId, value, reverse = false) {
         else element.classList.add('text-danger');
     }
 }
-
 // 3. สร้าง Efficiency Trend Chart
 function createEfficiencyTrendChart(data) {
     const canvas = document.getElementById('efficiencyTrendChart');
@@ -923,15 +922,19 @@ function createLinePerformanceChart(data) {
                 data: data.map(item => parseFloat(item.efficiency)),
                 backgroundColor: data.map(item => {
                     const eff = parseFloat(item.efficiency);
-                    if (eff >= 90) return 'rgba(40, 167, 69, 0.8)';  // green
-                    if (eff >= 80) return 'rgba(255, 193, 7, 0.8)';   // yellow
-                    return 'rgba(220, 53, 69, 0.8)';                  // red
+                    // if (eff >= 101) return 'rgba(40, 167, 69, 0.8)';  // green
+                    // if (eff >= 93) return 'rgba(40, 167, 69, 0.8)';  // green
+                    // if (eff >= 80) return 'rgba(255, 193, 7, 0.8)';   // yellow
+                    // return 'rgba(220, 53, 69, 0.8)';                  // red
+                    return getColorByPercentage(eff) + 80;
                 }),
                 borderColor: data.map(item => {
                     const eff = parseFloat(item.efficiency);
-                    if (eff >= 90) return 'rgba(40, 167, 69, 1)';
-                    if (eff >= 80) return 'rgba(255, 193, 7, 1)';
-                    return 'rgba(220, 53, 69, 1)';
+                    // if (eff >= 101) return 'rgba(40, 167, 69, 1)';
+                    // if (eff >= 93) return 'rgba(40, 167, 69, 1)';
+                    // if (eff >= 80) return 'rgba(255, 193, 7, 1)';
+                    // return 'rgba(220, 53, 69, 1)';
+                    return getColorByPercentage(eff);
                 }),
                 borderWidth: 2,
                 borderRadius: 4
@@ -1031,39 +1034,49 @@ function createQualityPerformanceChart(kpis) {
     new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['Pass Rate', 'Defect Rate'],
+            labels: ['Pass', 'Defect'],
             datasets: [{
                 data: [passRate, defectRate],
                 backgroundColor: [
-                    'rgba(40, 167, 69, 0.8)',   // green for pass
-                    'rgba(220, 53, 69, 0.8)'    // red for defect
+                    'rgba(40, 167, 69, 0.5)',   // green for pass
+                    'rgba(220, 53, 69, 0.5)'    // red for defect
                 ],
                 borderColor: [
                     'rgba(40, 167, 69, 1)',
                     'rgba(220, 53, 69, 1)'
                 ],
-                borderWidth: 2
+                borderWidth: 2,
+                cutout: '40%',
+                radius: '100%'
             }]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
                 legend: {
                     position: 'bottom'
                 },
                 datalabels: {
-                    formatter: (value, context) => {
-                        return `${value.toFixed(1)}%`;
+                    formatter: (value, ctx) => {
+                        const total = passRate + defectRate;
+                        return total ? (value / total * 100).toFixed(1) + '%' : '0%';
                     },
                     font: { size: 12, weight: 'bold' },
                     color: '#fff'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (c) => c.label + ': ' + c.parsed + '%'
+                    }
                 }
-            }
+            },
+            layout: { padding: 4 }
         }
     });
 }
-// Load and display report data
-async function loadReportData() {
+// 1 Load and display report data
+async function loadProductData() {
     try {
         // Load hourly data for charts
         const hourlyData = await fetchReportData('hourly');
@@ -1078,7 +1091,7 @@ async function loadReportData() {
         console.error('Error loading report data:', error);
     }
 }
-// Load and display Quality data
+// 2 Load and display Quality data
 async function loadQualityData() {
     try {
         // Load quality data for charts
@@ -1115,7 +1128,7 @@ function startRealTimeUpdate() {
     
     if (checkbox.checked) {
         updateInterval = setInterval(async () => {
-            await loadReportData();
+            await loadProductData();
             console.log('Real-time update completed');
         }, 30000); // Update every 30 seconds
     } else {
@@ -1125,9 +1138,97 @@ function startRealTimeUpdate() {
     }
 }
 
+// --- Export Date Dialog (Reusable) ---
+function openExportDateDialog(options = {}) {
+    const {
+        title = 'Export',
+        singleDay = false,
+        subtitle = '',
+        onConfirm = () => {},
+        defaultStart = new Date().toISOString().split('T')[0],
+        defaultEnd = defaultStart
+    } = options;
+
+    Swal.fire({
+        title,
+        html: `
+          ${subtitle ? `<div class="mb-2 small text-muted">${subtitle}</div>` : ''}
+          <div class="text-start">
+            <label class="form-label mb-1">วันที่เริ่ม</label>
+            <input type="date" id="exp_start" class="form-control mb-2" value="${defaultStart}">
+            ${singleDay ? '' : `
+            <label class="form-label mb-1 mt-1">วันที่สิ้นสุด</label>
+            <input type="date" id="exp_end" class="form-control" value="${defaultEnd}">
+            <div class="form-text mt-1">ถ้าเลือกวันเดียว ให้ใส่เหมือนกันทั้งสองช่อง</div>`}
+          </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Export',
+        cancelButtonText: 'ยกเลิก',
+        focusConfirm: false,
+        preConfirm: () => {
+            const start = document.getElementById('exp_start').value;
+            const end = singleDay ? start : document.getElementById('exp_end').value;
+            if (!start || !end) {
+                Swal.showValidationMessage('กรุณาเลือกวันที่');
+                return false;
+            }
+            if (end < start) {
+                Swal.showValidationMessage('วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่ม');
+                return false;
+            }
+            return { start, end };
+        }
+    }).then(res => {
+        if (!res.isConfirmed) return;
+        onConfirm(res.value);
+    });
+}
+
+// Generic launcher: ปุ่มทุกหน้าที่มี class .btn-export-date
+function initExportButtons() {
+    document.querySelectorAll('.btn-export-date').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const module = btn.dataset.module || 'export';
+            const single = (btn.dataset.single === '1');
+            openExportDateDialog({
+                title: `Export ${module}`,
+                singleDay: single,
+                onConfirm: ({ start, end }) => {
+                    Swal.fire({
+                        title: 'กำลังสร้างไฟล์...',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                            // สร้าง URL ตาม module
+                            let url;
+                            switch (module) {
+                                case 'production':
+                                    url = `api/export_product.php?start_date=${start}&end_date=${end}`;
+                                    break;
+                                case 'quality':
+                                    url = `api/export_quality.php?start_date=${start}&end_date=${end}`;
+                                    break;
+                                case 'performance':
+                                    url = `api/export_performance.php?start_date=${start}&end_date=${end}`;
+                                    break;
+                                default:
+                                    url = `api/export_${module}.php?start_date=${start}&end_date=${end}`;
+                            }
+                            window.location = url;
+                            setTimeout(() => Swal.close(), 1500);
+                        }
+                    });
+                }
+            });
+        });
+    });
+}
+
 // Event Listeners สำหรับ Production Filter
 document.getElementById('production_btnFilter').addEventListener('click', async function() {
-    await loadReportData();
+    await loadProductData();
 });
 // Event Listener สำหรับ Quality Filter
 document.getElementById('quality_btnFilter').addEventListener('click', async function() {
@@ -1149,6 +1250,7 @@ document.getElementById('btnExport').addEventListener('click', function(e) {
     const exportUrl = `api/export_excel.php?start_date=${startDate}&end_date=${endDate}&display_type=${displayType}`;
     window.open(exportUrl, '_blank');
 });
+
 // Event Listener สำหรับ Real-time Update Checkbox
 document.getElementById('realTimeUpdate').addEventListener('change', function() {
     startRealTimeUpdate();
@@ -1187,7 +1289,7 @@ function toggleDisplayType() {
     addChartTooltips();
     
     // Load data with new display type
-    loadReportData();
+    loadProductData();
     
     console.log('Display type changed to:', currentDisplayType);
 }
@@ -1244,13 +1346,15 @@ function updateChartTooltips() {
         }
     });
 }
-
+document.addEventListener('DOMContentLoaded', function() {
+    window.addEventListener('resize', () => setTimeout(equalizeChartCards, 100));
+});
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async function() {
     // Set default dates to today
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('production_date_start').value = today;
-    document.getElementById('production_date_end').value = today;
+    // document.getElementById('production_date_end').value = today;
 
     document.getElementById('quality_date_start').value = today;
     document.getElementById('quality_date_end').value = today;
@@ -1261,6 +1365,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     document.getElementById('report_date_start').value = today;
     document.getElementById('report_date_end').value = today;
 
+    // Initialize export buttons
+    initExportButtons();
+
     // Initialize empty charts first
     initializeCharts();
     
@@ -1268,7 +1375,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     addChartTooltips();
     
     // Load initial data
-    await loadReportData();
+    await loadProductData();
     // await loadQualityData();
 
     // Start real-time updates if enabled
@@ -1278,7 +1385,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     toggleDisplayType();
 
     document.getElementById('production-tab').addEventListener('shown.bs.tab', function() {
-        loadProductionData();
+        loadProductData();
     });
 
     document.getElementById('quality-tab').addEventListener('shown.bs.tab', function() {
