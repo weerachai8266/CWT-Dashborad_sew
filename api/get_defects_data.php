@@ -23,21 +23,21 @@ try {
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
     // Query สำหรับของเสียแยกตามไลน์
-    $sql_line = "SELECT process, COUNT(*) as count 
+    $sql_line = "SELECT process, SUM(qty) as count 
                  FROM qc_ng 
                  WHERE DATE(created_at) BETWEEN ? AND ?
                  GROUP BY process 
                  ORDER BY count DESC";
 
     // Query สำหรับของเสียแยกตามปัญหา
-    $sql_problem = "SELECT detail, COUNT(*) as count 
+    $sql_problem = "SELECT detail, SUM(qty) as count 
                    FROM qc_ng 
                    WHERE DATE(created_at) BETWEEN ? AND ?
                    GROUP BY detail 
                    ORDER BY count DESC";
 
     // Query สำหรับของเสียแยกตามโมเดล
-    $sql_model = "SELECT i.model, COUNT(*) as count 
+    $sql_model = "SELECT i.model, SUM(qty) as count 
                  FROM qc_ng q
                  JOIN item i ON q.part = i.item
                  WHERE DATE(q.created_at) BETWEEN ? AND ?
@@ -47,7 +47,7 @@ try {
     // Query สำหรับแนวโน้มของเสียตามวันที่
     $sql_timeline = "SELECT 
                     DATE(created_at) as defect_date, 
-                    COUNT(*) as total_defects, 
+                    SUM(qty) as total_defects, 
                     GROUP_CONCAT(DISTINCT process) as processes
                 FROM qc_ng 
                 WHERE DATE(created_at) BETWEEN 

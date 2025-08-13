@@ -31,7 +31,7 @@ class get_db {
     }
 
     // คำนวณเวลาทำงานจริงในแต่ละชั่วโมง (หักเวลาพักเบรค)
-    private function getActualWorkingMinutes($hour) {
+    public function getActualWorkingMinutes($hour) {
         $break_times = $this->getBreakTimes();
         $total_break_minutes = 0;
         
@@ -64,7 +64,7 @@ class get_db {
     }
 
     // ดึงข้อมูลเป้าหมายจากตาราง sewing_target ตามวันที่ที่กำหนด
-    private function getTargets($date = null) {
+    public function getTargets($date = null) {
         try {
             if ($date === null) {
                 $date = date('Y-m-d');
@@ -114,25 +114,32 @@ class get_db {
                     'third' => (int)$result['3rd'],
                     'sub' => (int)$result['sub']
                 ];
-            } else {
-                // ถ้าไม่มีเป้าหมายเลย ใช้ค่าเริ่มต้น
+            }else {
+                // ถ้าไม่มีเป้าหมายเลย ให้ใช้ค่าเริ่มต้น
                 return [
-                    'fc' => 10, 'fb' => 10, 'rc' => 10,
-                    'rb' => 10, 'third' => 10, 'sub' => 10
+                    'fc' => 0,
+                    'fb' => 0,
+                    'rc' => 0,
+                    'rb' => 0,
+                    'third' => 0,
+                    'sub' => 0
                 ];
             }
         } catch (PDOException $e) {
             error_log("Error fetching targets for date $date: " . $e->getMessage());
-            // ค่าเริ่มต้นเมื่อเกิดข้อผิดพลาด
             return [
-                'fc' => 10, 'fb' => 10, 'rc' => 10,
-                'rb' => 10, 'third' => 10, 'sub' => 10
-            ];
+                'fc' => 0,
+                'fb' => 0,
+                'rc' => 0,
+                'rb' => 0,
+                'third' => 0,
+                'sub' => 0
+            ];           
         }
     }
 
     // ดึงช่วงเวลาการทำงานจริงจากข้อมูล
-    private function getWorkingHours($start_date, $end_date) {
+    public function getWorkingHours($start_date, $end_date) {
         $all_hours = [];
         
         foreach ($this->tables as $line => $table_name) {

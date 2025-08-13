@@ -5,7 +5,7 @@ let updateInterval;
 let currentDisplayType = 'pieces'; // 'pieces' or 'percentage'
 
 // API Configuration
-const API_BASE = 'api/get_report_data.php';
+const API_BASE = 'api/get_production_data.php';
 
 // Chart colors configuration
 const CHART_COLORS = {
@@ -59,7 +59,7 @@ function getPercentageClass(percentage) {
 }
 
 
-// API Functions production
+// 1. API Functions production
 async function fetchReportData(type = 'hourly') {
     const startDate = document.getElementById('production_date_start').value;
     const endDate = document.getElementById('production_date_end').value;
@@ -90,7 +90,7 @@ async function fetchReportData(type = 'hourly') {
         showLoading(false);
     }
 }
-// API Functions quality
+// 2. API Functions quality
 async function fetchQualityData() {
 
     const start_date = document.getElementById('quality_date_start').value;
@@ -170,7 +170,7 @@ function hideError() {
     const errorState = document.getElementById('errorState');
     errorState.classList.add('d-none');
 }
-// Chart configuration
+// 1. Chart configuration
 const chartConfig = {
     type: 'bar',
     options: {
@@ -207,7 +207,7 @@ const chartConfig = {
     plugins: [ChartDataLabels] // ✅ ตรงนี้คือการเปิดใช้ plugin
 };
 
-// Create charts
+// 1. Create charts
 function createChart(canvasId, data, color, label) {
     const ctx = document.getElementById(canvasId).getContext('2d');
     
@@ -265,7 +265,7 @@ function initializeCharts() {
     });
 }
 
-// Update charts with new data
+// 1. Update charts with new data
 function updateCharts(data) {
     currentData = data;
     
@@ -327,7 +327,7 @@ function updateCharts(data) {
     }, 100);
 }
 
-// Update product summary totals
+// 1. Product summary totals
 async function updateSummary() {
     try {
         const summaryData = await fetchReportData('summary');
@@ -408,7 +408,7 @@ async function updateSummary() {
         console.error('Error updating summary:', error);
     }
 }
-// quality summary
+// 2. Quality summary
 async function updateQualityCards(data) {
     try {
         // แปลงข้อมูลจาก array เป็น object ที่จัดกลุ่มตาม process
@@ -491,7 +491,7 @@ async function updateQualityCards(data) {
     }
 }
 
-// Quality functions
+// 2. Quality functions
 function createParetoChart(canvasId, data, labels, title) {
     // Check if canvas exists
     const canvas = document.getElementById(canvasId);
@@ -503,33 +503,77 @@ function createParetoChart(canvasId, data, labels, title) {
     const existingChart = Chart.getChart(canvasId);
     if (existingChart) {    
         existingChart.destroy();
+        
     }
-    const ctx = document.getElementById(canvasId).getContext('2d');
+    // const ctx = document.getElementById(canvasId).getContext('2d');
+    const ctx = canvas.getContext('2d');
     
+    // ✅ Debug ข้อมูลก่อนเรียง
+    console.log('Original data:', data);
+    console.log('Original labels:', labels);
+
+    // ✅ แปลง data เป็น number และกรองข้อมูลที่ = 0 ออก
+    const filteredData = data.map((value, index) => ({
+        value: parseFloat(value) || 0,  // ✅ แปลงเป็น number
+        label: labels[index] || 'Unknown'
+    })).filter(item => item.value > 0); // กรองเฉพาะค่าที่ > 0
+    
+    console.log('Filtered data:', filteredData);
+    
+    if (filteredData.length === 0) {
+        console.warn('No data after filtering zeros');
+        return;
+    }
+
+    // ✅ เรียงข้อมูลจากมากไปน้อยก่อน (สำคัญมาก!)
+    const combinedData = filteredData.sort((a, b) => b.value - a.value);
+    
+    const sortedData = combinedData.map(item => item.value);
+    const sortedLabels = combinedData.map(item => item.label);
+
+    // ✅ Debug ข้อมูลหลังเรียง
+    console.log('Sorted data:', sortedData);
+    console.log('Sorted labels:', sortedLabels);
+
     // คำนวณค่าต่างๆ
-    const total = data.reduce((a, b) => a + b, 0);
+    const total = sortedData.reduce((a, b) => a + b, 0);
+    console.log('Total:', total);
+
+     // ✅ ตรวจสอบ total
+    if (total === 0) {
+        console.warn('Total is zero, cannot calculate percentages');
+        return;
+    }
 
     // คำนวณเปอร์เซ็นต์ของแต่ละรายการ
-    const individualPercentage = data.map(value => 
+    const individualPercentage = sortedData.map(value => 
         Number(((value / total) * 100).toFixed(1))
     );
+    console.log('Individual percentages:', individualPercentage);
+
+    // ✅ ตรวจสอบผลรวม percentage ต้องเป็น 100
+    const percentageSum = individualPercentage.reduce((a, b) => a + b, 0);
+    console.log('Sum of individual percentages:', percentageSum);
 
     // คำนวณเปอร์เซ็นต์สะสม
     let cumulative = 0;
-    const cumulativePercentage = data.map(value => {
+    const cumulativePercentage = sortedData.map(value => {
         cumulative += value;
         return Number(((cumulative / total) * 100).toFixed(1));
     });
+
+    // ✅ กำหนด max ให้สมดุลกัน
+    const maxDataValue = Math.max(...sortedData);
 
     new Chart(ctx, {
         type: 'bar',
         plugins: [ChartDataLabels], // ✅ เปิด plugin
         data: {
-            labels: labels,            
+            labels: sortedLabels,            
             datasets: [
                 {
                     label: 'จำนวนของเสีย',
-                    data: data,
+                    data: sortedData,
                     backgroundColor: 'rgba(54, 162, 235, 0.5)',
                     borderColor: 'rgba(54, 162, 235, 1)',
                     borderWidth: 2,
@@ -545,7 +589,9 @@ function createParetoChart(canvasId, data, labels, title) {
                     borderWidth: 2,
                     fill: false,
                     order: 1,
-                    yAxisID: 'percentage'
+                    yAxisID: 'percentage',
+                    pointHoverRadius: 7,
+                    tension: 0.1
                 }
             ]
         },
@@ -589,6 +635,10 @@ function createParetoChart(canvasId, data, labels, title) {
                         }
                     }
                 },
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
                 title: {
                     display: false,
                     text: title
@@ -605,24 +655,38 @@ function createParetoChart(canvasId, data, labels, title) {
                     }
                 },
                 y: {
-                    beginAtZero: true,
+                    type: 'linear',
+                    display: true,
                     position: 'left',
-                    max: Math.max(...data) + 3, // เพิ่ม margin ให้สูงสุด
+                    beginAtZero: true,
+                    max: Math.ceil(maxDataValue * 1.2), // เพิ่ม margin ให้สูงสุด
                     title: {
                         display: true,
                         text: 'จำนวนของเสีย (ชิ้น)'
                     },
                     ticks: {
-                        stepSize: 2,
+                        stepSize: Math.ceil(maxDataValue / 10),
                     }
                 },
                 percentage: {
-                    beginAtZero: true,
+                    type: 'linear',
+                    display: true,
                     position: 'right',
-                    max: 120,
+                    beginAtZero: true,
+                    max: 110, // ✅ เผื่อ margin 10%
                     title: {
                         display: true,
-                        text: 'Cumulative %'
+                        text: 'เปอร์เซ็นต์สะสม (%)'
+                    },
+                    ticks: {
+                        stepSize: 10,
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    },
+                    // ✅ ป้องกัน grid lines ทับกัน
+                    grid: {
+                        drawOnChartArea: false,
                     }
                 }
             }
@@ -706,8 +770,298 @@ function createTimelineChart(data) {
         }   
     });
 }
+// 3. Performance functions
+async function loadPerformanceData() {
+    try {
+        const start_date = document.getElementById('performance_date_start').value;
+        const end_date = document.getElementById('performance_date_end').value;
+        const type = document.querySelector('input[name="performanceType"]:checked').value;
+        
+        const response = await fetch(`api/get_performance.php?action=all&start_date=${start_date}&end_date=${end_date}&type=${type}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            updatePerformanceKPIs(data.data.kpis);
+            createEfficiencyTrendChart(data.data.efficiency_trend);
+            createLinePerformanceChart(data.data.line_performance);
+            createTargetVsActualChart(data.data.line_performance);
+            createQualityPerformanceChart(data.data.kpis);
+        }
+        
+    } catch (error) {
+        console.error('Error loading performance data:', error);
+    }
+}
 
+// 3. อัพเดต Performance KPIs
+function updatePerformanceKPIs(kpis) {
+    document.getElementById('overallEfficiency').textContent = `${kpis.overall_efficiency}%`;
+    document.getElementById('qualityRate').textContent = `${kpis.quality_rate}%`;
+    document.getElementById('productivityRate').textContent = `${kpis.productivity_rate}`;
+    document.getElementById('defectRate').textContent = `${kpis.defect_rate}%`;
+    
+    // เพิ่มสีตามค่า KPI
+    updateKPIColors('overallEfficiency', kpis.overall_efficiency);
+    updateKPIColors('qualityRate', kpis.quality_rate);
+    updateKPIColors('productivityRate', kpis.productivity_rate);
+    updateKPIColors('defectRate', kpis.defect_rate, true); // reverse for defect rate
+}
 
+// 3. สร้างกราฟแสดงประสิทธิภาพของไลน์
+function updateKPIColors(elementId, value, reverse = false) {
+    const element = document.getElementById(elementId);
+    element.classList.remove('text-success', 'text-warning', 'text-danger');
+    
+    if (reverse) {
+        if (value < 3) element.classList.add('text-success');
+        else if (value < 5) element.classList.add('text-warning');
+        else element.classList.add('text-danger');
+    } else {
+        if (value >= 90) element.classList.add('text-success');
+        else if (value >= 80) element.classList.add('text-warning');
+        else element.classList.add('text-danger');
+    }
+}
+
+// 3. สร้าง Efficiency Trend Chart
+function createEfficiencyTrendChart(data) {
+    const canvas = document.getElementById('efficiencyTrendChart');
+    if (!canvas) return;
+    
+    const existingChart = Chart.getChart(canvas);
+    if (existingChart) existingChart.destroy();
+    
+    const ctx = canvas.getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'line',
+        plugins: [ChartDataLabels],
+        data: {
+            labels: data.map(item => item.period),
+            datasets: [{
+                label: 'Efficiency %',
+                data: data.map(item => parseFloat(item.efficiency)),
+                borderColor: 'rgba(75, 192, 192, 1)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.3,
+                fill: true,
+                pointRadius: data.map(item => item.is_weekend ? 3 : 5), // จุดเล็กสำหรับวันหยุด
+                pointBackgroundColor: data.map(item => 
+                    item.is_weekend ? 'rgba(255, 99, 132, 0.5)' : 'rgba(75, 192, 192, 1)'
+                )
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'top',
+                    formatter: (value, context) => {
+                        const dataPoint = data[context.dataIndex];
+                        // ไม่แสดง label สำหรับวันหยุด
+                        return dataPoint.is_weekend ? '' : `${value.toFixed(1)}%`;
+                    },
+                    font: { size: 10, weight: 'bold' }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const dataPoint = data[context.dataIndex];
+                            const weekend_text = dataPoint.is_weekend ? ' (วันหยุด)' : '';
+                            return [
+                                `Efficiency: ${context.parsed.y.toFixed(1)}%${weekend_text}`,
+                                `Actual: ${dataPoint.actual.toLocaleString()} ชิ้น`,
+                                `Target: ${dataPoint.target.toLocaleString()} ชิ้น`
+                            ];
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'วันที่'
+                    },
+                    ticks: {
+                        maxTicksLimit: 15, // จำกัดจำนวน label ที่แสดงไม่ให้เยอะเกินไป
+                        callback: function(value, index) {
+                            // แสดงทุก 3-5 วัน ขึ้นอยู่กับจำนวนข้อมูล
+                            const step = Math.ceil(data.length / 10);
+                            return (index % step === 0) ? this.getLabelForValue(value) : '';
+                        }
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    max: 120,
+                    title: { display: true, text: 'Efficiency (%)' }
+                }
+            }
+        }
+    });
+}
+// 3. สร้าง Line Performance Comparison Chart
+function createLinePerformanceChart(data) {
+    const canvas = document.getElementById('performanceComparisonChart');
+    if (!canvas) return;
+    
+    const existingChart = Chart.getChart(canvas);
+    if (existingChart) existingChart.destroy();
+    
+    const ctx = canvas.getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'bar',
+        plugins: [ChartDataLabels],
+        data: {
+            labels: data.map(item => item.process),
+            datasets: [{
+                label: 'Efficiency %',
+                data: data.map(item => parseFloat(item.efficiency)),
+                backgroundColor: data.map(item => {
+                    const eff = parseFloat(item.efficiency);
+                    if (eff >= 90) return 'rgba(40, 167, 69, 0.8)';  // green
+                    if (eff >= 80) return 'rgba(255, 193, 7, 0.8)';   // yellow
+                    return 'rgba(220, 53, 69, 0.8)';                  // red
+                }),
+                borderColor: data.map(item => {
+                    const eff = parseFloat(item.efficiency);
+                    if (eff >= 90) return 'rgba(40, 167, 69, 1)';
+                    if (eff >= 80) return 'rgba(255, 193, 7, 1)';
+                    return 'rgba(220, 53, 69, 1)';
+                }),
+                borderWidth: 2,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'top',
+                    formatter: (value) => `${value.toFixed(2)}%`,
+                    font: { size: 11, weight: 'bold' }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 120,
+                    title: { display: true, text: 'Efficiency (%)' }
+                }
+            }
+        }
+    });
+}
+
+// 3. สร้าง Target vs Actual Chart
+function createTargetVsActualChart(data) {
+    const canvas = document.getElementById('targetVsActualChart');
+    if (!canvas) return;
+    
+    const existingChart = Chart.getChart(canvas);
+    if (existingChart) existingChart.destroy();
+    
+    const ctx = canvas.getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'bar',
+        plugins: [ChartDataLabels],
+        data: {
+            labels: data.map(item => item.process),
+            datasets: [
+                {
+                    label: 'Target',
+                    data: data.map(item => item.target_qty),
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 2,
+                    borderRadius: 4
+                },
+                {
+                    label: 'Actual',
+                    data: data.map(item => item.actual_qty),
+                    backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 2,
+                    borderRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: true },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'top',
+                    formatter: (value) => `${value}`,
+                    font: { size: 10, weight: 'bold' }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Quantity (pieces)' }
+                }
+            }
+        }
+    });
+}
+
+// 3. สร้าง Quality Performance Chart (Donut Chart)
+function createQualityPerformanceChart(kpis) {
+    const canvas = document.getElementById('qualityPerformanceChart');
+    if (!canvas) return;
+    
+    const existingChart = Chart.getChart(canvas);
+    if (existingChart) existingChart.destroy();
+    
+    const ctx = canvas.getContext('2d');
+    
+    const qualityRate = parseFloat(kpis.quality_rate) || 0;
+    const defectRate = parseFloat(kpis.defect_rate) || 0;
+    const passRate = Math.max(0, 100 - defectRate);
+    
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Pass Rate', 'Defect Rate'],
+            datasets: [{
+                data: [passRate, defectRate],
+                backgroundColor: [
+                    'rgba(40, 167, 69, 0.8)',   // green for pass
+                    'rgba(220, 53, 69, 0.8)'    // red for defect
+                ],
+                borderColor: [
+                    'rgba(40, 167, 69, 1)',
+                    'rgba(220, 53, 69, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                datalabels: {
+                    formatter: (value, context) => {
+                        return `${value.toFixed(1)}%`;
+                    },
+                    font: { size: 12, weight: 'bold' },
+                    color: '#fff'
+                }
+            }
+        }
+    });
+}
 // Load and display report data
 async function loadReportData() {
     try {
@@ -724,8 +1078,7 @@ async function loadReportData() {
         console.error('Error loading report data:', error);
     }
 }
-// Load quality data
-// Load and display report data
+// Load and display Quality data
 async function loadQualityData() {
     try {
         // Load quality data for charts
@@ -772,15 +1125,19 @@ function startRealTimeUpdate() {
     }
 }
 
-// Event Listeners
+// Event Listeners สำหรับ Production Filter
 document.getElementById('production_btnFilter').addEventListener('click', async function() {
     await loadReportData();
 });
-
+// Event Listener สำหรับ Quality Filter
 document.getElementById('quality_btnFilter').addEventListener('click', async function() {
     await loadQualityData();
 });
-
+// Event Listener สำหรับ Performance Filter
+document.getElementById('performance_btnFilter').addEventListener('click', function() {
+    loadPerformanceData();
+});
+// Event Listener สำหรับ Export Button
 document.getElementById('btnExport').addEventListener('click', function(e) {
     e.preventDefault();
     
@@ -792,7 +1149,7 @@ document.getElementById('btnExport').addEventListener('click', function(e) {
     const exportUrl = `api/export_excel.php?start_date=${startDate}&end_date=${endDate}&display_type=${displayType}`;
     window.open(exportUrl, '_blank');
 });
-
+// Event Listener สำหรับ Real-time Update Checkbox
 document.getElementById('realTimeUpdate').addEventListener('change', function() {
     startRealTimeUpdate();
 });
@@ -894,8 +1251,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('production_date_start').value = today;
     document.getElementById('production_date_end').value = today;
+
     document.getElementById('quality_date_start').value = today;
     document.getElementById('quality_date_end').value = today;
+
+    document.getElementById('performance_date_start').value = today;
+    document.getElementById('performance_date_end').value = today;
+
     document.getElementById('report_date_start').value = today;
     document.getElementById('report_date_end').value = today;
 
@@ -914,6 +1276,18 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // ✅ เรียกให้ทำงานกับค่า default ที่เป็น percentage
     toggleDisplayType();
+
+    document.getElementById('production-tab').addEventListener('shown.bs.tab', function() {
+        loadProductionData();
+    });
+
+    document.getElementById('quality-tab').addEventListener('shown.bs.tab', function() {
+        loadQualityData();
+    });
+
+    document.getElementById('performance-tab').addEventListener('shown.bs.tab', function() {
+        loadPerformanceData();
+    });
 
     console.log('Sewing report system initialized');
 });

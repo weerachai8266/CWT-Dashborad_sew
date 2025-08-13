@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>CWT Production</title>
+    <title>CWT Dashboard</title>
     <!-- <link rel="shortcut icon" href="https://cdn.dinoq.com/datafilerepo/greenpower/greenpowerlogo.ico" type="image/x-icon"> -->
     <link rel="icon" href="img/favicon_circular.ico" type="image/x-icon">
 
@@ -47,16 +47,16 @@
         <nav class="sidebar">
             <ul class="nav flex-column pt-3">
                 <li class="nav-item">
-                    <a class="nav-link active" id="board-tab" data-bs-toggle="tab" href="#board" role="tab">📊 Production</a>
+                    <a class="nav-link active" id="production-tab" data-bs-toggle="tab" href="#production" role="tab">📊 Production</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" id="target-tab" data-bs-toggle="tab" href="#quality" role="tab">✅ Quality</a>
+                    <a class="nav-link" id="quality-tab" data-bs-toggle="tab" href="#quality" role="tab">✅ Quality</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" id="performance-tab" data-bs-toggle="tab" href="#performance" role="tab">📈 Performance</a>
+                    <a class="nav-link" id="performance-tab" data-bs-toggle="tab" href="#performance" role="tab">📈 Performance [Beta]</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" id="report-tab" data-bs-toggle="tab" href="#report_data" role="tab">📝 Report</a>
+                    <a class="nav-link" id="report-tab" data-bs-toggle="tab" href="#report_data" role="tab">📝 Report [Beta]</a>
                 </li>
             </ul>
         </nav>
@@ -65,7 +65,7 @@
         <div class="main-content">
             <div class="tab-content">
                 <!-- Dashboard Tab -->
-                <div class="tab-pane fade show active" id="board" role="tabpanel">
+                <div class="tab-pane fade show active" id="production" role="tabpanel">
                     <!-- production Filter -->
                     <div class="row " id="production-filter-form">
                         <div class="col-md-4">
@@ -335,7 +335,7 @@
                         </div>
                     </div>  <!-- End of quality Filter -->
                     <hr class="my-2">
-                    <div class="row">
+                    <div class="row mt-3">
                         <div class="col-12 mb-4">
                             <div class="card">
                                 <div class="card-header bg-info text-white">
@@ -439,27 +439,125 @@
                             </div>
                         </div>
                     </div>  <!-- End of Charts Container -->
-                </div>
+                </div>  <!-- End of quality Data Tab -->
 
                 <!-- Performance Data Tab -->
                 <div class="tab-pane fade" id="performance" role="tabpanel">
-                    <div class="container-fluid px-3 mt-4">
-                        <div class="row">
-                            <div class="col-12">
-                                <h3>Performance</h3>
-                                <p>Performance...</p>
+                    <!-- Performance Filter -->
+                    <div class="row" id="performance-filter-form">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <label class="input-group-text">วันที่</label>
+                                <input class="form-control" type="date" id="performance_date_start" value="<?= date('Y-m-d') ?>">
+                                <input class="form-control" type="date" id="performance_date_end" value="<?= date('Y-m-d') ?>">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="performanceType" id="radioDaily" value="daily" checked>
+                                    <label class="form-check-label" for="radioDaily">รายวัน</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="performanceType" id="radioMonthly" value="monthly">
+                                    <label class="form-check-label" for="radioMonthly">รายเดือน</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2 d-flex justify-content-end gap-3 align-items-start">
+                            <button id="performance_btnFilter" class="btn btn-primary">ตกลง</button>
+                        </div>
+                    </div>
+                    <hr class="my-2">
+
+                    <!-- Performance KPI Cards -->
+                    <div class="row mt-3">
+                        <div class="col-12 mb-4">
+                            <div class="card">
+                                <div class="card-header bg-primary text-white">
+                                    <h6 class="mb-0">📊 Performance KPIs</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row text-center">
+                                        <div class="col-md-3">
+                                            <div class="border rounded p-3 performance-card summary-card">
+                                                <h4 class="text-success" id="overallEfficiency">0%</h4>
+                                                <small>Overall Efficiency</small>
+                                                <!-- <small>(Actual ÷ Target) × 100</small> -->
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="border rounded p-3 performance-card summary-card">
+                                                <h4 class="text-info" id="qualityRate">0%</h4>
+                                                <small>Quality Rate</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="border rounded p-3 performance-card summary-card">
+                                                <h4 class="text-warning" id="productivityRate">0</h4>
+                                                <small>Productivity</small>
+                                                <!-- <small>Output/Man/Hr</small> -->
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="border rounded p-3 performance-card summary-card">
+                                                <h4 class="text-danger" id="defectRate">0%</h4>
+                                                <small>Defect Rate</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Performance Charts -->
+                    <div class="row">                       
+
+                        <!-- Performance Comparison Chart -->
+                        <div class="col-lg-6 col-md-12 mb-4">
+                            <div class="card summary-card">
+                                <div class="card-header bg-info text-white">
+                                    <h6 class="mb-0">📊 Line Performance</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="performanceComparisonChart"></canvas>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="row">
-                            <div class="col-md-12">
-                                <div class="card">
-                                    <div class="card-header bg-primary text-white">
-                                        <h6 class="mb-0">📊 รายงานการผลิต</h6>
-                                    </div>
-                                    <div class="card-body">
-                                        <p>เนื้อหาในแท็บ Target...</p>
-                                    </div>
+                        <!-- Target vs Actual Chart -->
+                        <div class="col-lg-6 col-md-12 mb-4">
+                            <div class="card summary-card">
+                                <div class="card-header bg-warning text-dark">
+                                    <h6 class="mb-0">🎯 Target vs Actual</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="targetVsActualChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Efficiency Trend Chart -->
+                        <div class="col-lg-6 col-md-12 mb-4">
+                            <div class="card summary-card">
+                                <div class="card-header bg-success text-white">
+                                    <h6 class="mb-0">📈 Efficiency Trend</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="efficiencyTrendChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quality Performance Chart -->
+                        <div class="col-lg-6 col-md-12 mb-4">
+                            <div class="card summary-card">
+                                <div class="card-header bg-danger text-white">
+                                    <h6 class="mb-0">✅ Quality Performance</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="qualityPerformanceChart"></canvas>
                                 </div>
                             </div>
                         </div>
