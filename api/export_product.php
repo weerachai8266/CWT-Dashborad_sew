@@ -17,7 +17,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
-include __DIR__ . '/../connect.php';
+include __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/data.class.php';
 
 /**

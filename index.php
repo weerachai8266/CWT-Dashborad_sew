@@ -55,9 +55,9 @@
                 <li class="nav-item">
                     <a class="nav-link" id="performance-tab" data-bs-toggle="tab" href="#performance" role="tab">📈 Performance</a>
                 </li>
-                <li class="nav-item">
+                <!-- <li class="nav-item">
                     <a class="nav-link" id="report-tab" data-bs-toggle="tab" href="#report_data" role="tab">📝 Report [Beta]</a>
-                </li>
+                </li> -->
             </ul>
         </nav>
 

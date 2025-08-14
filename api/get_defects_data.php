@@ -5,7 +5,7 @@ error_log("API called with dates: start={$_GET['start_date']}, end={$_GET['end_d
 
 // กำหนด Content-Type เป็น JSON
 header('Content-Type: application/json');
-include(__DIR__ . "/../connect.php");
+include(__DIR__ . "/../config/db.php"); // เชื่อมต่อฐานข้อมูล
 
 // Validate dates
 $start_date = !empty($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-d');

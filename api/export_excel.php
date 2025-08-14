@@ -6,7 +6,7 @@ require_once '../vendor/autoload.php'; // สำหรับ PhpSpreadsheet
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
-include(__DIR__ . "/../connect.php"); // เชื่อมต่อฐานข้อมูล
+include(__DIR__ . "/../config/db.php"); // เชื่อมต่อฐานข้อมูล
 require_once(__DIR__ . '/data.class.php');
 
 function cleanSheetTitle($title) {
@@ -17,7 +17,6 @@ function cleanSheetTitle($title) {
 // ตรวจสอบว่าเป็นคำขอ GET หรือไม่
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     try {
-        // ใช้ $conn จากไฟล์ connect.php ที่ include มาแล้ว
         $report = new get_db($conn);
 
         $start_date = $_GET['start_date'] ?? date('Y-m-d');

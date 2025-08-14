@@ -8,7 +8,7 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST');
 header('Access-Control-Allow-Headers: Content-Type');
 
-include(__DIR__ . "/../connect.php"); // เชื่อมต่อฐานข้อมูล
+include(__DIR__ . "/../config/db.php"); // เชื่อมต่อฐานข้อมูล
 require_once(__DIR__ . '/data.class.php');
 
 // Handle API Requests

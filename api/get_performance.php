@@ -12,7 +12,7 @@ header('Access-Control-Allow-Headers: Content-Type');
 $response = ['success' => false, 'data' => [], 'message' => ''];
 
 try {
-    include(__DIR__ . "/../connect.php");
+    include(__DIR__ . "/../config/db.php");
     require_once(__DIR__ . '/data.class.php');
 
     // ตรวจสอบการเชื่อมต่อฐานข้อมูล
