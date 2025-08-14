@@ -145,7 +145,7 @@ try {
                 $query_start = $start_month;
                 $query_end = $end_month;
             } else {
-                $query_start = $start_date;
+                $query_start = date('Y-m-01', strtotime($start_date));
                 $query_end = $end_date;
             }
             
@@ -195,7 +195,7 @@ try {
                         'efficiency' => round($efficiency, 2),
                         'actual' => $period_actual,
                         'target' => round($period_target),
-                        'is_weekend' => ($day_of_week == 0 || $day_of_week == 6)
+                        'is_weekend' => ($day_of_week == 0 || $day_of_week == 7)
                     ];
                 }
                 

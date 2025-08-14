@@ -135,7 +135,34 @@ function calculateManHours(PDO $dbConnection, string $productionLine, string $st
         return 0.0;
     }
 }
-
+/**
+ * Get shift based on time
+ * @param string $time Time in format H:i:s
+ * @return string Shift name (เช้า, บ่าย, OT)
+ */
+function getShiftFromTime(string $time): string {
+    if (empty($time)) {
+        return 'เช้า'; // default shift
+    }
+    
+    $hour = (int)date('H', strtotime($time));
+    $minute = (int)date('i', strtotime($time));
+    $totalMinutes = ($hour * 60) + $minute;
+    
+    // Convert time ranges to minutes
+    $morningStart = 8 * 60;      // 08:00
+    $morningEnd = 12 * 60 + 30;  // 12:30
+    $afternoonEnd = 17 * 60;     // 17:00
+    $nightEnd = 24 * 60;         // 24:00 (00:00 next day)
+    
+    if ($totalMinutes >= $morningStart && $totalMinutes < $morningEnd) {
+        return 'เช้า';
+    } elseif ($totalMinutes >= $morningEnd && $totalMinutes < $afternoonEnd) {
+        return 'บ่าย';
+    } else {
+        return 'OT';
+    }
+}
 /**
  * Calculate daily man-hours for specific line, date, and shift
  * @param PDO $dbConnection Database connection
@@ -175,6 +202,66 @@ function calculateDailyManHours(PDO $dbConnection, string $productionLine, strin
         
         $result = $statement->fetch(PDO::FETCH_ASSOC);
         return (float)($result['total_hours'] ?? 0.0);
+        
+    } catch(Exception $e) {
+        return 0.0;
+    }
+}
+/**
+ * Calculate man-hours for specific item at specific time
+ * @param PDO $dbConnection Database connection
+ * @param string $productionLine Production line code
+ * @param string $targetDate Target date (Y-m-d)
+ * @param string $targetTime Target time (H:i:s)
+ * @return float Man-hours for that specific time
+ */
+function calculateItemManHours(PDO $dbConnection, string $productionLine, string $targetDate, string $targetTime): float {
+    $manpowerColumns = [
+        'fc' => 'fc_act',
+        'fb' => 'fb_act', 
+        'rc' => 'rc_act',
+        'rb' => 'rb_act',
+        'third' => '3rd_act',
+        'sub' => 'sub_act'
+    ];
+    
+    if (!isset($manpowerColumns[$productionLine])) {
+        return 0.0;
+    }
+    
+    $manCountColumn = $manpowerColumns[$productionLine];
+    
+    // Get shift from time
+    $workShift = getShiftFromTime($targetTime);
+    
+    try {
+        // Get man-hour data for the specific date and shift
+        $sql = "SELECT thour, {$manCountColumn} as man_count
+                FROM sewing_man_act 
+                WHERE shift = :work_shift 
+                AND DATE(created_at) = :target_date 
+                AND {$manCountColumn} > 0
+                ORDER BY created_at, thour";
+                
+        $statement = $dbConnection->prepare($sql);
+        $statement->execute([
+            ':work_shift' => $workShift,
+            ':target_date' => $targetDate
+        ]);
+        
+        $totalManHours = 0.0;
+        $recordCount = 0;
+        
+        while ($manHourRecord = $statement->fetch(PDO::FETCH_ASSOC)) {
+            $manCount = (int)($manHourRecord['man_count'] ?? 0);
+            $workingHours = (float)($manHourRecord['thour'] ?? 1.0);
+            $totalManHours += $manCount * $workingHours;
+            $recordCount++;
+        }
+        
+        // If we have multiple records for the same shift, average them
+        // return $recordCount > 0 ? $totalManHours / $recordCount : 0.0;
+        return $totalManHours;
         
     } catch(Exception $e) {
         return 0.0;
@@ -259,11 +346,6 @@ try {
         foreach ($qualityControlRecords as $qcRecord) {
             $qualityControlTotal += (int)($qcRecord['qty'] ?? 1);
         }
-
-        // Auto-size columns
-        foreach (['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] as $columnLetter) {
-            $summarySheet->getColumnDimension($columnLetter)->setAutoSize(true);
-        }
         
         // Calculate man-hours for each shift
         $morningManHours = calculateManHours($conn, $lineCode, $reportStartDate, $reportEndDate, 'เช้า');
@@ -282,6 +364,12 @@ try {
         
         $summaryRowIndex++;
 
+    }
+        // Auto-size columns
+        foreach (['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] as $columnLetter) {
+            $summarySheet->getColumnDimension($columnLetter)->setAutoSize(true);
+        }
+
         // Add borders
         $summarySheet->getStyle("A4:H" . ($summaryRowIndex - 1))
             ->getBorders()
@@ -290,7 +378,7 @@ try {
 
         // Bold headers
         $summarySheet->getStyle('A4:H4')->getFont()->setBold(true);
-    }
+    
 
     // ==================== DAILY MAN-HOUR SHEET ====================
     
@@ -396,11 +484,59 @@ try {
         $detailSheet->setCellValue('D1', 'วันที่');
         $detailSheet->setCellValue('E1', 'เวลา');
 
+        // Summary headers for production
+        $detailSheet->setCellValue('G1', 'วันที่');
+        $detailSheet->setCellValue('H1', 'โมเดล');
+        $detailSheet->setCellValue('I1', 'สรุปยอด');
+        $detailSheet->setCellValue('J1', 'รวม Man-Hour');
+
+        // Summary headers for QC
+        $detailSheet->setCellValue('L1', 'วันที่');
+        $detailSheet->setCellValue('M1', 'โมเดล');
+        $detailSheet->setCellValue('N1', 'ชิ้นส่วน');
+        $detailSheet->setCellValue('O1', 'ชื่อ');
+        $detailSheet->setCellValue('P1', 'สรุปยอด');
+
         $detailRowIndex = 2;
         
         // Get QC data for this line
         $qualityControlRecords = fetchQualityControlItems($conn, $lineCode, $reportStartDate, $reportEndDate);
         
+        // Create item mapping for QC data (ชิ้นส่วน -> โมเดล และ nickname)
+        $itemMapping = [];
+        try {
+            $itemCodes = array_values(array_unique(array_column($qualityControlRecords, 'item')));
+            
+            // Check if we have item codes before creating query
+            if (!empty($itemCodes)) {
+                // Add AS- prefix to item codes for database lookup
+                $itemCodesWithPrefix = array_map(function($itemCode) {
+                    return 'AS-' . $itemCode;
+                }, $itemCodes);                
+                
+                // Create placeholders for prepared statement
+                $placeholders = str_repeat('?,', count($itemCodesWithPrefix) - 1) . '?';
+                $itemQuery = "SELECT item, model, nickname FROM item WHERE item IN ({$placeholders})";
+                
+                $itemStmt = $conn->prepare($itemQuery);
+                $itemStmt->execute($itemCodesWithPrefix);
+                
+                $foundItems = [];
+                $rowCount = 0;
+                while ($itemRow = $itemStmt->fetch(PDO::FETCH_ASSOC)) {
+                    $rowCount++;
+                    $foundItems[] = $itemRow['item'];
+                    $itemMapping[$itemRow['item']] = [
+                        'model' => $itemRow['model'] ?? '',
+                        'nickname' => $itemRow['nickname'] ?? ''
+                    ];
+                }                
+            }
+        } catch (Exception $e) {
+            // If item mapping fails, continue with empty mapping
+            $itemMapping = [];
+        }
+
         // Group QC records by date
         $qcRecordsByDate = [];
         foreach ($qualityControlRecords as $qcRecord) {
@@ -482,19 +618,127 @@ try {
             }
         }
 
+        // Create production summary by date and model
+        $productionSummaryByModel = [];
+        foreach ($productionRecords as $prodRecord) {
+            $modelName = $prodRecord['model'] ?? $prodRecord['item'] ?? '';
+            $quantity = $prodRecord['qty'] ?? 0;
+            $recordDate = $prodRecord['date'] ?? '';
+            
+            if ($modelName && $recordDate) {
+                $summaryKey = $recordDate . '|' . $modelName;
+                if (!isset($productionSummaryByModel[$summaryKey])) {
+                    $productionSummaryByModel[$summaryKey] = [
+                        'date' => $recordDate,
+                        'model' => $modelName,
+                        'total_qty' => 0
+                    ];
+                }
+                $productionSummaryByModel[$summaryKey]['total_qty'] += $quantity;
+            }
+        }
+
+        // Create QC summary by date and component
+        $qcSummaryByComponent = [];
+        foreach ($qualityControlRecords as $qcRecord) {
+            $recordDateTime = !empty($qcRecord['created_at']) ? new DateTime($qcRecord['created_at']) : null;
+            $recordDate = $recordDateTime ? $recordDateTime->format('Y-m-d') : '';
+            $componentName = $qcRecord['item'] ?? '';
+            $quantity = (int)($qcRecord['qty'] ?? 1);
+            
+            // Get model and nickname from item mapping (use AS- prefixed key)
+            $prefixedComponentName = 'AS-' . $componentName;
+            $modelName = isset($itemMapping[$prefixedComponentName]) ? $itemMapping[$prefixedComponentName]['model'] : '';
+            $nickName = isset($itemMapping[$prefixedComponentName]) ? $itemMapping[$prefixedComponentName]['nickname'] : '';
+            
+            if ($componentName && $recordDate) {
+                $summaryKey = $recordDate . '|' . $componentName;
+                if (!isset($qcSummaryByComponent[$summaryKey])) {
+                    $qcSummaryByComponent[$summaryKey] = [
+                        'date' => $recordDate,
+                        'model' => $modelName,
+                        // 'component' => $componentName, // ไม่มี AS-
+                        'component' => $prefixedComponentName, // มี AS-
+                        'nickname' => $nickName,
+                        'total_qty' => 0
+                    ];
+                }
+                $qcSummaryByComponent[$summaryKey]['total_qty'] += $quantity;
+            }
+        }
+
+        // Fill production summary with Man-Hour calculation (columns G, H, I, J)
+        $summaryRowIndex = 2;
+        foreach ($productionSummaryByModel as $prodSummary) {
+            $totalQuantity = $prodSummary['total_qty'];
+            $modelDate = $prodSummary['date'];
+            
+            // Calculate total man-hours for this date (all shifts combined)
+            $totalManHours = calculateDailyManHours($conn, $lineCode, $modelDate, 'เช้า') +
+                           calculateDailyManHours($conn, $lineCode, $modelDate, 'บ่าย') +
+                           calculateDailyManHours($conn, $lineCode, $modelDate, 'OT');
+            
+            // If there are multiple models on the same date, proportionally distribute man-hours
+            $totalProductionOnDate = 0;
+            foreach ($productionSummaryByModel as $tempSummary) {
+                if ($tempSummary['date'] === $modelDate) {
+                    $totalProductionOnDate += $tempSummary['total_qty'];
+                }
+            }
+            
+            // Distribute man-hours proportionally based on production quantity
+            $proportionalManHours = $totalProductionOnDate > 0 ? 
+                ($totalManHours * $totalQuantity / $totalProductionOnDate) : 0;
+            
+            $detailSheet->setCellValue("G{$summaryRowIndex}", $prodSummary['date']);
+            $detailSheet->setCellValue("H{$summaryRowIndex}", $prodSummary['model']);
+            $detailSheet->setCellValue("I{$summaryRowIndex}", $totalQuantity);
+            $detailSheet->setCellValue("J{$summaryRowIndex}", round($proportionalManHours, 2));
+            $summaryRowIndex++;
+        }
+
+        // Fill QC summary (columns L, M, N, O, P)
+        $qcSummaryRowIndex = 2;
+        foreach ($qcSummaryByComponent as $qcSummary) {
+            $detailSheet->setCellValue("L{$qcSummaryRowIndex}", $qcSummary['date']);
+            $detailSheet->setCellValue("M{$qcSummaryRowIndex}", $qcSummary['model']);      // โมเดล
+            $detailSheet->setCellValue("N{$qcSummaryRowIndex}", $qcSummary['component']);  // ชิ้นส่วน
+            $detailSheet->setCellValue("O{$qcSummaryRowIndex}", $qcSummary['nickname']);   // ชื่อ
+            $detailSheet->setCellValue("P{$qcSummaryRowIndex}", $qcSummary['total_qty']);  // สรุปยอด
+            $qcSummaryRowIndex++;
+        }
+
         // Format detail sheet
-        foreach (['A', 'B', 'C', 'D', 'E'] as $columnLetter) {
+        foreach (['A', 'B', 'C', 'D', 'E', 'G', 'H', 'I', 'J', 'L', 'M', 'N', 'O', 'P'] as $columnLetter) {
             $detailSheet->getColumnDimension($columnLetter)->setAutoSize(true);
         }
 
-        // Add borders
+        // Add borders to main data
         $detailSheet->getStyle("A1:E" . ($detailRowIndex - 1))
             ->getBorders()
             ->getAllBorders()
             ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
 
-        // Bold headers
+        // Add borders to production summary (with Man-Hour)
+        if ($summaryRowIndex > 2) {
+            $detailSheet->getStyle("G1:J" . ($summaryRowIndex - 1))
+                ->getBorders()
+                ->getAllBorders()
+                ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        }
+
+        // Add borders to QC summary
+        if ($qcSummaryRowIndex > 2) {
+            $detailSheet->getStyle("L1:P" . ($qcSummaryRowIndex - 1))
+                ->getBorders()
+                ->getAllBorders()
+                ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        }
+
+        // Bold all headers
         $detailSheet->getStyle('A1:E1')->getFont()->setBold(true);
+        $detailSheet->getStyle('G1:J1')->getFont()->setBold(true);
+        $detailSheet->getStyle('L1:P1')->getFont()->setBold(true);
     }    
    
     // ==================== EXPORT EXCEL FILE ====================

@@ -1027,7 +1027,7 @@ function createQualityPerformanceChart(kpis) {
     
     const ctx = canvas.getContext('2d');
     
-    const qualityRate = parseFloat(kpis.quality_rate) || 0;
+    // const qualityRate = parseFloat(kpis.quality_rate) || 0;
     const defectRate = parseFloat(kpis.defect_rate) || 0;
     const passRate = Math.max(0, 100 - defectRate);
     
