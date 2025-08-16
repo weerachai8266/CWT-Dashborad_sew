@@ -241,6 +241,11 @@ try {
     // ---------- CREATE SPREADSHEET ----------
     $spreadsheet = new Spreadsheet();
 
+    // Set color for alternating rows
+    $colorrow = 'E0E0E0'; //เทา
+    $colorheader = '404040'; //ฟ้า
+    $textheader = 'FFFFFF'; //ขาว
+
     // ===== SHEET 1: SUMMARY =====
     $sheet1 = $spreadsheet->getActiveSheet();
     $sheet1->setTitle('Summary');
@@ -965,12 +970,32 @@ try {
         $sheet7->setCellValue("H{$r}", $rowRaw['qty']);
         $r++;
     }
+    // auto size columns
     foreach (range('A','H') as $c) {
         $sheet7->getColumnDimension($c)->setAutoSize(true);
     }
-    $sheet7->getStyle("A1:H1")->getFont()->setBold(true);
-    $sheet7->getStyle("A1:H".($r-1))
-        ->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+    // Set background color for specific columns
+    $sheet7->getStyle("A1:H1")
+            ->getFill()
+            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()
+            ->setRGB($colorheader);
+
+    // Set header colors
+    $sheet7->getStyle("A1:H1")->getFont()->setBold(true)->getColor()->setRGB($textheader);
+    
+    // สลับสีแถว (striping rows)
+    for ($i = 2; $i < $r; $i += 2) {
+        $sheet7->getStyle("A{$i}:H{$i}")
+            ->getFill()
+            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()
+            ->setRGB($colorrow);
+    }
+
+    // Set Borders for the entire table
+    // $sheet7->getStyle("A1:H".($r-1))
+    //     ->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
     
 

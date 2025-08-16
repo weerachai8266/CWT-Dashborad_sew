@@ -295,6 +295,11 @@ try {
     // Initialize data handler
     $dataHandler = new get_db($conn);
 
+    // Set color for alternating rows
+    $colorrow = 'E0E0E0'; //เทา
+    $colorheader = '404040'; //ฟ้า
+    $textheader = 'FFFFFF'; //ขาว
+
     // Get and validate date parameters
     $reportStartDate = $_GET['start_date'] ?? date('Y-m-d');
     $reportEndDate = $_GET['end_date'] ?? $reportStartDate;
@@ -326,7 +331,7 @@ try {
     // ==================== SUMMARY SHEET ====================
     
     $summarySheet = $excelWorkbook->getActiveSheet();
-    $summarySheet->setTitle('สรุปรวม');
+    $summarySheet->setTitle('Summary');
 
     // Summary sheet headers
     $summarySheet->setCellValue('A1', 'รายงานสรุปการเย็บ (Production)');
@@ -377,16 +382,42 @@ try {
         foreach (['A', 'B', 'C', 'D', 'E', 'F', 'G'] as $columnLetter) {
             $summarySheet->getColumnDimension($columnLetter)->setAutoSize(true);
         }
-
-        // Add borders
-        $summarySheet->getStyle("A4:G" . ($summaryRowIndex - 1))
-            ->getBorders()
-            ->getAllBorders()
-            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
-
         // Bold headers
-        $summarySheet->getStyle('A4:G4')->getFont()->setBold(true);
+        $summarySheet->getStyle('A4:G4')->getFont()->setBold(true)->getColor()->setRGB($textheader);
 
+        // Add header background color
+        $summarySheet->getStyle("A4:G4") // แถวหัวตาราง
+            ->getFill()
+            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()
+            ->setRGB($colorheader);
+
+        // กรอบนอกหนา แถวหัวตารางหนา เส้นในเป็นเส้นบาง
+        // $summarySheet->getStyle("A4:G" . ($summaryRowIndex - 1))
+        //     ->getBorders()->getOutline()    // กรอบนอก
+        //     ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_MEDIUM);
+
+        // $summarySheet->getStyle("A4:G4")
+        //     ->getBorders()->getBottom() // กรอบล่าง
+        //     ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_MEDIUM);
+
+        // $summarySheet->getStyle("A4:G" . ($summaryRowIndex - 1))
+        //     ->getBorders()->getHorizontal() // แนวนอน
+        //     ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+
+        // $summarySheet->getStyle("A4:G" . ($summaryRowIndex - 1))
+        //     ->getBorders()->getVertical()   // แนวตั้ง
+        //     ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_DOTTED);
+
+        // สลับสีแถว (striping rows)
+        for ($i = 5; $i < $summaryRowIndex; $i += 2) {
+            $summarySheet->getStyle("A{$i}:G{$i}")
+                ->getFill()
+                ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                ->getStartColor()
+                ->setRGB($colorrow);
+            }
+        
     // ==================== DAILY MAN-HOUR SHEET ====================
     
     $manHourSheet = $excelWorkbook->createSheet();
@@ -437,16 +468,23 @@ try {
         }
     }
 
-    // Format man-hour sheet
-    $manHourSheet->getStyle("A4:E4")->getFont()->setBold(true);
+    // Format header
+    $manHourSheet->getStyle("A4:E4")->getFont()->setBold(true)->getColor()->setRGB($textheader);
 
-    if ($manHourRowIndex > 5) {
-        // Add borders to data area
-        $manHourSheet->getStyle("A4:E" . ($manHourRowIndex - 1))
-            ->getBorders()
-            ->getAllBorders()
-            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
-    }
+    // Add header background color
+    $manHourSheet->getStyle("A4:E4") // แถวหัวตาราง
+        ->getFill()
+        ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+        ->getStartColor()
+        ->setRGB($colorheader);
+
+    // if ($manHourRowIndex > 5) {
+    //     // Add borders to data area
+    //     $manHourSheet->getStyle("A4:E" . ($manHourRowIndex - 1))
+    //         ->getBorders()
+    //         ->getAllBorders()
+    //         ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+    // }
 
     // Auto-size columns
     foreach (['A', 'B', 'C', 'D', 'E'] as $columnLetter) {
@@ -464,10 +502,18 @@ try {
         
         // Format totals row
         $manHourSheet->getStyle("A{$totalsRowIndex}:E{$totalsRowIndex}")->getFont()->setBold(true);
-        $manHourSheet->getStyle("A{$totalsRowIndex}:E{$totalsRowIndex}")
-            ->getBorders()
-            ->getAllBorders()
-            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THICK);
+        // $manHourSheet->getStyle("A{$totalsRowIndex}:E{$totalsRowIndex}")
+        //     ->getBorders()
+        //     ->getAllBorders()
+        //     ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THICK);
+    }
+    // สลับสีแถว (striping rows)
+    for ($i = 5; $i < $manHourRowIndex; $i += 2) {
+        $manHourSheet->getStyle("A{$i}:E{$i}")
+            ->getFill()
+            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()
+            ->setRGB($colorrow);
     }
 
     // ==================== DETAIL SHEETS PER LINE ====================
@@ -717,39 +763,81 @@ try {
             $detailSheet->setCellValue("Q{$qcSummaryRowIndex}", $qcSummary['nickname']);   // ชื่อ
             $detailSheet->setCellValue("R{$qcSummaryRowIndex}", $qcSummary['total_qty']);  // สรุปยอด
             $qcSummaryRowIndex++;
-        }
+        }        
 
         // Format detail sheet
         foreach (['A', 'B', 'C', 'D', 'E', 'G', 'H', 'I', 'J', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'] as $columnLetter) {
             $detailSheet->getColumnDimension($columnLetter)->setAutoSize(true);
         }
+        // Add header background color
+        $detailSheet->getStyle("A1:E1")
+            ->getFill()
+            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()
+            ->setRGB($colorheader);
+
+        $detailSheet->getStyle("G1:L1")
+            ->getFill()
+            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()
+            ->setRGB($colorheader);
+
+        $detailSheet->getStyle("N1:R1")
+            ->getFill()
+            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()
+            ->setRGB($colorheader);
+            
+        // สลับสีแถว (striping rows)
+        for ($i = 2; $i < $detailRowIndex; $i += 2) {
+            $detailSheet->getStyle("A{$i}:E{$i}")
+                ->getFill()
+                ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                ->getStartColor()
+                ->setRGB($colorrow); 
+        }
+        for ($i = 2; $i < $summaryRowIndex; $i += 2) {
+            $detailSheet->getStyle("G{$i}:L{$i}")
+                ->getFill()
+                ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                ->getStartColor()
+                ->setRGB($colorrow); 
+        }
+        for ($i = 2; $i < $qcSummaryRowIndex; $i += 2) {
+            $detailSheet->getStyle("N{$i}:R{$i}")
+                ->getFill()
+                ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                ->getStartColor()
+                ->setRGB($colorrow); 
+        }
+        // Bold all headers
+        $detailSheet->getStyle('A1:E1')->getFont()->setBold(true)->getColor()->setRGB($textheader);
+        $detailSheet->getStyle('G1:L1')->getFont()->setBold(true)->getColor()->setRGB($textheader);
+        $detailSheet->getStyle('N1:R1')->getFont()->setBold(true)->getColor()->setRGB($textheader);
 
         // Add borders to main data
-        $detailSheet->getStyle("A1:E" . ($detailRowIndex - 1))
-            ->getBorders()
-            ->getAllBorders()
-            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        // $detailSheet->getStyle("A1:E" . ($detailRowIndex - 1))
+        //     ->getBorders()
+        //     ->getAllBorders()
+        //     ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+
 
         // Add borders to production summary (with Man-Hour)
-        if ($summaryRowIndex > 2) {
-            $detailSheet->getStyle("G1:L" . ($summaryRowIndex - 1))
-                ->getBorders()
-                ->getAllBorders()
-                ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
-        }
+        // if ($summaryRowIndex > 2) {
+        //     $detailSheet->getStyle("G1:L" . ($summaryRowIndex - 1))
+        //         ->getBorders()
+        //         ->getAllBorders()
+        //         ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        // }
 
         // Add borders to QC summary
-        if ($qcSummaryRowIndex > 2) {
-            $detailSheet->getStyle("N1:R" . ($qcSummaryRowIndex - 1))
-                ->getBorders()
-                ->getAllBorders()
-                ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
-        }
-
-        // Bold all headers
-        $detailSheet->getStyle('A1:E1')->getFont()->setBold(true);
-        $detailSheet->getStyle('G1:L1')->getFont()->setBold(true);
-        $detailSheet->getStyle('N1:R1')->getFont()->setBold(true);
+        // if ($qcSummaryRowIndex > 2) {
+        //     $detailSheet->getStyle("N1:R" . ($qcSummaryRowIndex - 1))
+        //         ->getBorders()
+        //         ->getAllBorders()
+        //         ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        // }
+        
     }
 
     // ==================== EXPORT EXCEL FILE ====================
