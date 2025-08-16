@@ -81,7 +81,7 @@
                                 <!-- auto update -->
                                 <div class="form-check mt-1">
                                     <input type="checkbox" class="form-check-input" id="realTimeUpdate">
-                                    <label class="form-check-label" for="realTimeUpdate">อัปเดตอัตโนมัติทุก 30 วิ</label>
+                                    <label class="form-check-label" for="realTimeUpdate">AutoUpdate 30 Sec</label>
                                 </div>
 
                                 <!-- Display Type -->
@@ -89,7 +89,7 @@
                                     <div class="form-check">
                                         <input class="form-check-input" type="radio" name="displayType" id="radioPercentage" value="percentage" checked>
                                         <label class="form-check-label" for="radioPercentage">
-                                            แสดงผลแบบเปอร์เซ็น
+                                            Display as Percentage
                                         </label>
                                     </div>
                                 </div>
@@ -98,7 +98,7 @@
                                     <div class="form-check">
                                         <input class="form-check-input" type="radio" name="displayType" id="radioPieces" value="pieces">
                                         <label class="form-check-label" for="radioPieces">
-                                            แสดงผลแบบชิ้น
+                                            Display as Pieces
                                         </label>
                                     </div>
                                 </div>
@@ -289,7 +289,7 @@
                         <div class="col-12">
                             <div class="card shadow-sm" id="modelSummaryCard">
                                 <div class="card-header bg-info d-flex justify-content-between align-items-center">
-                                    <h6 class="mb-0">Model Summary</h6>
+                                    <h6 class="mb-0 text-white">Model Summary</h6>
                                     <span class="badge bg-primary" id="modelCountBadge">Total 0 Models</span>
                                 </div>
                                 <div class="card-body p-3">
@@ -474,6 +474,65 @@
                             </div>
                         </div>
                     </div>  <!-- End of Charts Container -->
+
+                    <!-- Quality Data Tab -->
+                    <div class="row mt-4">
+                        <!-- Cross Process-Detail Table -->
+                        <div class="col-12">
+                            <div class="card shadow-sm mb-4" id="crossProcessCard">
+                                <div class="card-header bg-info d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0 text-white">Cross-Process-Detail</h6>
+                                    <span class="badge bg-primary" id="processDetailCount">Total 0 Details</span>
+                                </div>
+                                <div class="card-body p-3">
+                                    <div class="overflow-x-auto">
+                                        <table class="table table-hover table-striped" id="crossProcessTable">
+                                            <thead class="bg-blue-100">
+                                                <tr>
+                                                    <th scope="col" class="px-6 py-2 text-left text-sm font-bold">Detail\Nickname</th>
+                                                    <!-- Headers จะถูกเติมจาก JavaScript -->
+                                                </tr>
+                                            </thead>
+                                            <tbody id="crossProcessBody">
+                                                <tr>
+                                                    <td colspan="9" class="text-center py-3">กำลังโหลดข้อมูล...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cross Model-Detail Table -->
+                        <div class="col-12">
+                            <div class="card shadow-sm" id="crossModelCard">
+                                <div class="card-header bg-info d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0 text-white">Cross-Model-Detail</h6>
+                                    <span class="badge bg-primary" id="modelDetailCount">Total 0 Details</span>
+                                </div>
+                                <div class="card-body p-3">
+                                    <div class="overflow-x-auto">
+                                        <table class="table table-hover table-striped" id="crossModelTable">
+                                            <thead class="bg-blue-100">
+                                                <tr>
+                                                    <th scope="col" class="px-6 py-2 text-left text-sm font-bold">Detail\Model</th>
+                                                    <!-- Headers จะถูกเติมจาก JavaScript -->
+                                                </tr>
+                                            </thead>
+                                            <tbody id="crossModelBody">
+                                                <tr>
+                                                    <td colspan="9" class="text-center py-3">กำลังโหลดข้อมูล...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End of Cross Model-Detail Table -->
+
                 </div>  <!-- End of quality Data Tab -->
 
                 <!-- Performance Data Tab -->

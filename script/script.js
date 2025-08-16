@@ -452,9 +452,9 @@ function updateModelSummaryTable(data) {
   
   // สร้างแถวข้อมูลสำหรับแต่ละโมเดล
   data.models.forEach((model, index) => {
-    const rowClass = index % 2 === 0 ? '' : 'hover:bg-gray-50';
+    // const rowClass = index % 2 === 0 ? '' : 'hover:bg-gray-50';
     
-    html += `<tr class="${rowClass}">
+    html += `<tr class="hover:bg-gray-50">
       <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-left">${model.name}</td>
       <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${model.fc > 0 ? model.fc.toLocaleString() : '-'}</td>
       <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${model.fb > 0 ? model.fb.toLocaleString() : '-'}</td>
@@ -466,7 +466,7 @@ function updateModelSummaryTable(data) {
   });
   
   // เพิ่มแถวสรุป
-  html += `<tr class="hover:bg-gray-50">
+  html += `<tr>
     <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">รวมทั้งหมด</td>
     <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${data.totals.fc > 0 ? data.totals.fc.toLocaleString() : '-'}</td>
     <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${data.totals.fb > 0 ? data.totals.fb.toLocaleString() : '-'}</td>
@@ -840,6 +840,204 @@ function createTimelineChart(data) {
         }   
     });
 }
+// ดึงข้อมูล Cross-tab จาก API
+async function fetchCrossTabData() {
+    const start_date = document.getElementById('quality_date_start').value;
+    const end_date = document.getElementById('quality_date_end').value;
+    
+    try {
+        const response = await fetch(`api/get_cross_tabs.php?start_date=${start_date}&end_date=${end_date}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // แสดงตาราง Cross-Process-Detail
+            updateCrossProcessTable(data.process_data);
+            
+            // แสดงตาราง Cross-Model-Detail
+            updateCrossModelTable(data.model_data);
+            
+            console.log('Cross-tab data loaded successfully');
+        } else {
+            throw new Error(data.message || 'Unknown error occurred');
+        }
+    } catch (error) {
+        console.error('Error loading cross-tab data:', error);
+        document.getElementById('crossProcessBody').innerHTML = 
+            `<tr><td colspan="9" class="text-center text-danger">ไม่สามารถโหลดข้อมูลได้: ${error.message}</td></tr>`;
+        document.getElementById('crossModelBody').innerHTML = 
+            `<tr><td colspan="9" class="text-center text-danger">ไม่สามารถโหลดข้อมูลได้: ${error.message}</td></tr>`;
+    }
+}
+
+// 2. อัพเดตตาราง Cross-Process-Detail
+function updateCrossProcessTable(data) {
+    if (!data || !data.details || !data.processes) {
+        document.getElementById('crossProcessBody').innerHTML = 
+            '<tr><td colspan="9" class="text-center py-3">ไม่พบข้อมูล Cross-Process-Detail</td></tr>';
+        document.getElementById('processDetailCount').textContent = 'Total 0 Details';
+        return;
+    }
+    
+    // อัพเดต header
+    const headerRow = document.querySelector('#crossProcessTable thead tr');
+    headerRow.innerHTML = '<th scope="col" class="px-6 py-2 text-left text-sm font-bold">Detail\\Process</th>';
+
+    data.processes.forEach(process => {
+        headerRow.innerHTML += `<th scope="col" class="px-6 py-2 text-center text-sm font-bold">${process}</th>`;
+    });
+    
+    // เพิ่มคอลัมน์รวมและเปอร์เซ็นต์
+    headerRow.innerHTML += `
+        <th scope="col" class="px-6 py-2 text-center text-sm font-bold">รวมเสีย</th>
+        <th scope="col" class="px-6 py-2 text-center text-sm font-bold">%</th>
+    `;
+    
+    // อัพเดตเนื้อหาตาราง
+    let tbody = '';
+    let totalAll = 0;
+    
+    // คำนวณผลรวมทั้งหมด
+    data.details.forEach(detail => {
+        let detailTotal = 0;
+        data.processes.forEach(process => {
+            detailTotal += data.data[detail][process] || 0;
+        });
+        totalAll += detailTotal;
+    });
+    
+    // สร้างแถวข้อมูล
+    data.details.forEach((detail, index) => {
+        const rowClass = index % 2 === 0 ? '' : 'bg-gray-50';
+        let rowTotal = 0;
+        
+        tbody += `<tr class="${rowClass}">
+            <td class="px-6 py-2 text-sm text-left font-medium">${detail}</td>`;
+            
+        // แสดงข้อมูลแต่ละ process
+        data.processes.forEach(process => {
+            const value = data.data[detail][process] || 0;
+            rowTotal += value;
+            tbody += `<td class="px-6 py-2 text-sm text-center">${value > 0 ? value : '-'}</td>`;
+        });
+        
+        // แสดงผลรวมและเปอร์เซ็นต์
+        const percentage = totalAll > 0 ? ((rowTotal / totalAll) * 100).toFixed(1) : '0.0';
+        tbody += `
+            <td class="px-6 py-2 text-sm text-center font-bold">${rowTotal}</td>
+            <td class="px-6 py-2 text-sm text-center">${percentage}%</td>
+        </tr>`;
+    });
+    
+    // เพิ่มแถวสรุป
+    tbody += '<tr class="bg-blue-50"><td class="px-6 py-2 text-sm font-bold">รวมเสีย(ชิ้น)</td>';
+    
+    // คำนวณผลรวมแต่ละคอลัมน์
+    const columnTotals = {};
+    data.processes.forEach(process => {
+        columnTotals[process] = 0;
+        data.details.forEach(detail => {
+            columnTotals[process] += data.data[detail][process] || 0;
+        });
+        tbody += `<td class="px-6 py-2 text-sm text-center font-bold">${columnTotals[process]}</td>`;
+    });
+    
+    // ปิดแถวสรุป
+    tbody += `
+        <td class="px-6 py-2 text-sm text-center font-bold">${totalAll}</td>
+        <td class="px-6 py-2 text-sm text-center font-bold">100%</td>
+    </tr>`;
+
+    document.getElementById('crossProcessBody').innerHTML = tbody;
+    document.getElementById('processDetailCount').textContent = `Total ${data.details.length} Details`;
+}
+
+// 2. อัพเดตตาราง Cross-Model-Detail (คล้ายกับ process แต่ใช้ Model แทน)
+function updateCrossModelTable(data) {
+    // ทำเหมือนกับ updateCrossProcessTable แต่เปลี่ยนจาก process เป็น model
+    if (!data || !data.details || !data.models) {
+        document.getElementById('crossModelBody').innerHTML = 
+            '<tr><td colspan="9" class="text-center py-3">ไม่พบข้อมูล Cross-Model-Detail</td></tr>';
+        document.getElementById('modelDetailCount').textContent = 'Total 0 Details';
+        return;
+    }
+    
+    // อัพเดต header
+    const headerRow = document.querySelector('#crossModelTable thead tr');
+    headerRow.innerHTML = '<th scope="col" class="px-6 py-2 text-left text-sm font-bold">Detail\\Model</th>';
+    
+    data.models.forEach(model => {
+        headerRow.innerHTML += `<th scope="col" class="px-6 py-2 text-center text-sm font-bold">${model}</th>`;
+    });
+    
+    // เพิ่มคอลัมน์รวมและเปอร์เซ็นต์
+    headerRow.innerHTML += `
+        <th scope="col" class="px-6 py-2 text-center text-sm font-bold">รวมเสีย</th>
+        <th scope="col" class="px-6 py-2 text-center text-sm font-bold">%</th>
+    `;
+    
+    // อัพเดตเนื้อหาตาราง (คล้ายกับ updateCrossProcessTable)
+    let tbody = '';
+    let totalAll = 0;
+    
+    // คำนวณผลรวมทั้งหมด
+    data.details.forEach(detail => {
+        let detailTotal = 0;
+        data.models.forEach(model => {
+            detailTotal += data.data[detail][model] || 0;
+        });
+        totalAll += detailTotal;
+    });
+    
+    // สร้างแถวข้อมูล
+    data.details.forEach((detail, index) => {
+        const rowClass = index % 2 === 0 ? '' : 'bg-gray-50';
+        let rowTotal = 0;
+        
+        tbody += `<tr class="${rowClass}">
+            <td class="px-6 py-2 text-sm text-left font-medium">${detail}</td>`;
+            
+        // แสดงข้อมูลแต่ละ model
+        data.models.forEach(model => {
+            const value = data.data[detail][model] || 0;
+            rowTotal += value;
+            tbody += `<td class="px-6 py-2 text-sm text-center">${value > 0 ? value : '-'}</td>`;
+        });
+        
+        // แสดงผลรวมและเปอร์เซ็นต์
+        const percentage = totalAll > 0 ? ((rowTotal / totalAll) * 100).toFixed(1) : '0.0';
+        tbody += `
+            <td class="px-6 py-2 text-sm text-center font-bold">${rowTotal}</td>
+            <td class="px-6 py-2 text-sm text-center">${percentage}%</td>
+        </tr>`;
+    });
+    
+    // เพิ่มแถวสรุป
+    tbody += '<tr class="bg-blue-50"><td class="px-6 py-2 text-sm font-bold">รวมเสีย(ชิ้น)</td>';
+    
+    // คำนวณผลรวมแต่ละคอลัมน์
+    const columnTotals = {};
+    data.models.forEach(model => {
+        columnTotals[model] = 0;
+        data.details.forEach(detail => {
+            columnTotals[model] += data.data[detail][model] || 0;
+        });
+        tbody += `<td class="px-6 py-2 text-sm text-center font-bold">${columnTotals[model]}</td>`;
+    });
+    
+    // ปิดแถวสรุป
+    tbody += `
+        <td class="px-6 py-2 text-sm text-center font-bold">${totalAll}</td>
+        <td class="px-6 py-2 text-sm text-center font-bold">100%</td>
+    </tr>`;
+    
+    document.getElementById('crossModelBody').innerHTML = tbody;
+    document.getElementById('modelDetailCount').textContent = `Total ${data.details.length} Details`;
+}
 // 3. Performance functions
 async function loadPerformanceData() {
     try {
@@ -1180,6 +1378,7 @@ async function loadQualityData() {
         if (data.success) {
             // อัปเดต Quality Cards ก่อน
             await updateQualityCards(data);
+            await fetchCrossTabData();
 
             console.log('Quality data loaded successfully',data);
         } else {
