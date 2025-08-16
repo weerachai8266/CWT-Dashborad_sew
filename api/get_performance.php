@@ -54,6 +54,53 @@ try {
         }
         return $line_target;
     }
+    /**
+     * คำนวณ Man-Hours ที่ถูกต้องสำหรับ Productivity โดยคำนึงถึงค่า thour และเวลาพัก
+     * @param PDO $conn Database connection
+     * @param string $start_date Start date in YYYY-MM-DD format
+     * @param string $end_date End date in YYYY-MM-DD format
+     * @return float Total man-hours after adjusting for actual working time
+     */
+    function calculateActualManHours(PDO $conn, string $start_date, string $end_date): float {
+        $total_man_hours = 0;
+        try {
+            $sql_manpower = "SELECT DATE(created_at) as d, thour, shift,
+                            fc_act, fb_act, rc_act, rb_act, 3rd_act as third_act, sub_act
+                    FROM sewing_man_act
+                    WHERE DATE(created_at) BETWEEN ? AND ?
+                    ORDER BY d, thour";
+            $stmt = $conn->prepare($sql_manpower);
+            $stmt->execute([$start_date, $end_date]);
+            $mp_rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($mp_rows as $r) {
+                $sum = (int)$r['fc_act'] + (int)$r['fb_act'] + (int)$r['rc_act'] + (int)$r['rb_act']
+                    + (int)$r['third_act'] + (int)$r['sub_act'];
+                    
+                if ($sum > 0) {
+                    // นำค่า thour มาคำนวณเวลาทำงานจริง
+                    $hours = (float)$r['thour'];
+                    
+                    // หักเวลาพักตามกะการทำงาน
+                    $shift = $r['shift'] ?? 'เช้า';  // ถ้าไม่มีข้อมูล shift ให้เป็นเช้า
+                    
+                    if ($shift == 'เช้า' || $shift == 'บ่าย') {
+                        // หักพัก 20 นาทีต่อ 4 ชั่วโมง (สัดส่วน 220/240 = 0.9167)
+                        $actual_hours = $hours * (220/240);
+                    } else {
+                        // OT ไม่ต้องหักพัก
+                        $actual_hours = $hours;
+                    }
+                    
+                    $total_man_hours += $sum * $actual_hours;
+                }
+            }
+        } catch (PDOException $e) {
+            error_log("Actual Man-hours calculation error: ".$e->getMessage());
+        }
+        
+        return $total_man_hours;
+    }
 
     // คำนวณ Performance KPIs โดยใช้ data.class.php + การคำนวณคุณภาพเดิม
     function calculatePerformanceKPIs($db_handler, $conn, $start_date, $end_date) {
@@ -69,25 +116,25 @@ try {
                 $total_actual = 0;
                 $total_target = 0;
 
-                // ✅ ดึง manpower (เหมือนเดิม)
-                $total_employees_man_hours = 0;
-                try {
-                    $sql_manpower = "SELECT DATE(created_at) as d, thour,
-                                            fc_act, fb_act, rc_act, rb_act, 3rd_act as third_act, sub_act
-                                    FROM sewing_man_act
-                                    WHERE DATE(created_at) BETWEEN ? AND ?
-                                    ORDER BY d, thour";
-                    $stmt = $conn->prepare($sql_manpower);
-                    $stmt->execute([$start_date, $end_date]);
-                    $mp_rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                    foreach ($mp_rows as $r) {
-                        $sum = (int)$r['fc_act'] + (int)$r['fb_act'] + (int)$r['rc_act'] + (int)$r['rb_act']
-                            + (int)$r['third_act'] + (int)$r['sub_act'];
-                        if ($sum > 0) $total_employees_man_hours += $sum; // man-hours (1 ชั่วโมงต่อแถว)
-                    }
-                } catch (PDOException $e) {
-                    error_log("Manpower fallback: ".$e->getMessage());
-                }
+                // // ✅ ดึง manpower (เหมือนเดิม)
+                // $total_employees_man_hours = 0;
+                // try {
+                //     $sql_manpower = "SELECT DATE(created_at) as d, thour,
+                //                             fc_act, fb_act, rc_act, rb_act, 3rd_act as third_act, sub_act
+                //                     FROM sewing_man_act
+                //                     WHERE DATE(created_at) BETWEEN ? AND ?
+                //                     ORDER BY d, thour";
+                //     $stmt = $conn->prepare($sql_manpower);
+                //     $stmt->execute([$start_date, $end_date]);
+                //     $mp_rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                //     foreach ($mp_rows as $r) {
+                //         $sum = (int)$r['fc_act'] + (int)$r['fb_act'] + (int)$r['rc_act'] + (int)$r['rb_act']
+                //             + (int)$r['third_act'] + (int)$r['sub_act'];
+                //         if ($sum > 0) $total_employees_man_hours += $sum; // man-hours (1 ชั่วโมงต่อแถว)
+                //     }
+                // } catch (PDOException $e) {
+                //     error_log("Manpower fallback: ".$e->getMessage());
+                // }
 
                 foreach ($summary_data as $line => $data) {
                     $actual = (int)($data['total_qty'] ?? 0);
@@ -107,7 +154,11 @@ try {
                 }
 
                 // Productivity = Output / Man-Hours
-                if ($total_employees_man_hours > 0) {
+                $actual_man_hours = calculateActualManHours($conn, $start_date, $end_date);
+                if ($actual_man_hours > 0) {
+                    $kpis['productivity_rate'] = round($total_actual / $actual_man_hours, 2);
+                } elseif ($total_employees_man_hours > 0) {
+                    // fallback ถ้ามีปัญหากับการคำนวณแบบใหม่
                     $kpis['productivity_rate'] = round($total_actual / $total_employees_man_hours, 2);
                 }
 
@@ -279,109 +330,6 @@ try {
             
         case 'debug':
             // Debug การคำนวณ target แบบละเอียด
-            try {
-                $summary_data = $db_handler->getSummaryReport($start_date, $end_date, 'pieces');
-                $debug_data = $db_handler->debugTableData($start_date, $end_date);
-                $working_hours = $db_handler->getWorkingHours($start_date, $end_date);
-                
-                $response['data'] = [
-                    'summary_report' => $summary_data,
-                    'debug_table' => $debug_data,
-                    'working_hours' => $working_hours,
-                    'target_calculation' => [],
-                    'total_summary' => [
-                        'total_actual' => 0,
-                        'total_target' => 0,
-                        'your_calculation' => 315,
-                        'program_calculation' => 0,
-                        'difference' => 0
-                    ]
-                ];
-                
-                // Debug การคำนวณ target แต่ละไลน์
-                if ($summary_data && $working_hours) {
-                    $total_actual = 0;
-                    $total_target = 0;
-                    
-                    foreach ($summary_data as $line => $data) {
-                        $actual_qty = (int)($data['total_qty'] ?? 0);
-                        $hourly_target_rate = (int)($data['target'] ?? 0);
-                        // ✅ ถ้า target = 0 ให้ใช้ค่า default
-                        if ($hourly_target_rate == 0) {
-                            $hourly_target_rate = 49; // ค่าเป้าหมาย/ชั่วโมงที่คุณบอก
-                            error_log("Target for line $line is 0, using default: $hourly_target_rate");
-                        }
-                        $line_target = 0;
-                        $hour_details = [];
-                        
-                        // คำนวณแต่ละชั่วโมง
-                        foreach ($working_hours as $hour) {
-                            $actual_working_minutes = $db_handler->getActualWorkingMinutes($hour);
-                            $hour_target = ($hourly_target_rate * $actual_working_minutes) / 60;
-                            $hour_target_rounded = round($hour_target);
-                            
-                            $line_target += $hour_target;
-                            
-                            $hour_details[] = [
-                                'hour' => $hour,
-                                'working_minutes' => $actual_working_minutes,
-                                'target_rate_per_hour' => $hourly_target_rate,
-                                'calculated_target' => round($hour_target, 4),
-                                'rounded_target' => $hour_target_rounded
-                            ];
-                        }
-                        
-                        $line_target_rounded = round($line_target);
-                        $total_actual += $actual_qty;
-                        $total_target += $line_target_rounded;
-                        
-                        // เก็บข้อมูล debug ของแต่ละไลน์
-                        $response['data']['target_calculation'][$line] = [
-                            'process' => strtoupper($line === 'third' ? '3RD' : $line),
-                            'actual_qty' => $actual_qty,
-                            'hourly_target_rate' => $hourly_target_rate,
-                            'line_target_before_round' => round($line_target, 4),
-                            'line_target_after_round' => $line_target_rounded,
-                            'hour_by_hour' => $hour_details,
-                            'total_working_minutes' => array_sum(array_column($hour_details, 'working_minutes')),
-                            'manual_calculation' => [
-                                'formula' => '(target_rate × working_minutes) ÷ 60',
-                                'per_hour' => array_map(function($detail) {
-                                    return $detail['target_rate_per_hour'] . ' × ' . $detail['working_minutes'] . ' ÷ 60 = ' . $detail['calculated_target'];
-                                }, $hour_details)
-                            ]
-                        ];
-                    }
-                    
-                    // สรุปรวม
-                    $program_calculation = $total_target;
-                    $your_calculation = 315;
-                    $difference = $program_calculation - $your_calculation;
-                    
-                    $response['data']['total_summary'] = [
-                        'total_actual' => $total_actual,
-                        'total_target_program' => $program_calculation,
-                        'your_calculation' => $your_calculation,
-                        'difference' => $difference,
-                        'working_hours_count' => count($working_hours),
-                        'lines_count' => count($summary_data),
-                        'calculation_method' => 'Sum of (target_rate × actual_working_minutes ÷ 60) for each hour, then round per line'
-                    ];
-                    
-                    // เพิ่มข้อมูล available fields
-                    $response['data']['available_fields'] = [];
-                    foreach ($summary_data as $line => $data) {
-                        $response['data']['available_fields'][$line] = array_keys($data);
-                    }
-                }
-                
-            } catch (Exception $e) {
-                $response['data'] = [
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString()
-                ];
-                error_log("Debug error: " . $e->getMessage());
-            }
             break;
             
         default:

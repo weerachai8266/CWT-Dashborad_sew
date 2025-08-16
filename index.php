@@ -283,6 +283,42 @@
                             </div>
                         </div>
                     </div> <!-- End of Charts Row -->
+
+                    <!-- Model Summary Card -->
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            <div class="card shadow-sm" id="modelSummaryCard">
+                                <div class="card-header bg-info d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">Model Summary</h6>
+                                    <span class="badge bg-primary" id="modelCountBadge">Total 0 Models</span>
+                                </div>
+                                <div class="card-body p-3">
+                                    <div class="overflow-x-auto rounded-lg shadow-md">
+                                        <table class="min-w-full divide-y divide-gray-200" id="modelSummaryTable">
+                                            <thead class="bg-blue-100">
+                                                <tr>
+                                                    <th scope="col" class="px-6 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wider rounded-tl-lg">Model</th>
+                                                    <th scope="col" class="px-6 py-2 text-center text-sm font-bold text-gray-700 uppercase tracking-wider">F/C</th>
+                                                    <th scope="col" class="px-6 py-2 text-center text-sm font-bold text-gray-700 uppercase tracking-wider">F/B</th>
+                                                    <th scope="col" class="px-6 py-2 text-center text-sm font-bold text-gray-700 uppercase tracking-wider">R/C</th>
+                                                    <th scope="col" class="px-6 py-2 text-center text-sm font-bold text-gray-700 uppercase tracking-wider">R/B</th>
+                                                    <th scope="col" class="px-6 py-2 text-center text-sm font-bold text-gray-700 uppercase tracking-wider">3RD</th>
+                                                    <th scope="col" class="px-6 py-2 text-center text-sm font-bold text-gray-700 uppercase tracking-wider">Sub</th>
+                                                </tr>
+                                            </thead>
+
+                                            <tbody class="bg-white divide-y divide-gray-200" id="modelSummaryBody">
+                                            <tr class="hover:bg-gray-50">
+                                                <td colspan="9" class="text-center py-3">กำลังโหลดข้อมูล...</td>
+                                            </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>  
+                    <!-- end of Model Summary Card -->
                 </div>  <!-- End of Dashboard Tab -->
 
                 <!-- quality Data Tab -->

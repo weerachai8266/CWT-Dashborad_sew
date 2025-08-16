@@ -257,7 +257,7 @@ function createChart(canvasId, data, color, label) {
     charts[canvasId] = new Chart(ctx, config);
 }
 
-// Initialize all charts
+// 1. Initialize all charts
 function initializeCharts() {
     Object.keys(CHART_COLORS).forEach(line => {
         const canvasId = line === 'third' ? 'chart3RD' : `chart${line.toUpperCase()}`;
@@ -407,6 +407,76 @@ async function updateSummary() {
     } catch (error) {
         console.error('Error updating summary:', error);
     }
+}
+// 1. Product Summary Table
+async function loadModelSummary() {
+  try {
+    const date = document.getElementById('production_date_start').value;
+    const response = await fetch(`${API_BASE}?type=model_summary&start_date=${date}&end_date=${date}`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.message || 'Unknown error occurred');
+    }
+    
+    updateModelSummaryTable(result.data);
+  } catch (error) {
+    console.error('Error loading model summary:', error);
+    document.getElementById('modelSummaryBody').innerHTML = 
+      `<tr><td colspan="8" class="text-center text-danger">ไม่สามารถโหลดข้อมูลได้: ${error.message}</td></tr>`;
+  }
+  
+}
+
+// 1. ฟังก์ชันอัพเดตตารางสรุปโมเดล
+function updateModelSummaryTable(data) {
+  const tbody = document.getElementById('modelSummaryBody');
+  const badge = document.getElementById('modelCountBadge');
+  
+  if (!data || !data.models || data.models.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-3">ไม่พบข้อมูลโมเดลการผลิต</td></tr>';
+    badge.textContent = 'Total 0 Models';
+    return;
+  }
+
+  badge.textContent = `Total ${data.models.length} Models`;
+
+  let html = '';
+  
+  // เรียงลำดับข้อมูลตามจำนวนรวม (มากไปน้อย)
+//   data.models.sort((a, b) => b.total - a.total);
+  
+  // สร้างแถวข้อมูลสำหรับแต่ละโมเดล
+  data.models.forEach((model, index) => {
+    const rowClass = index % 2 === 0 ? '' : 'hover:bg-gray-50';
+    
+    html += `<tr class="${rowClass}">
+      <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-left">${model.name}</td>
+      <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${model.fc > 0 ? model.fc.toLocaleString() : '-'}</td>
+      <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${model.fb > 0 ? model.fb.toLocaleString() : '-'}</td>
+      <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${model.rc > 0 ? model.rc.toLocaleString() : '-'}</td>
+      <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${model.rb > 0 ? model.rb.toLocaleString() : '-'}</td>
+      <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${model['3rd'] > 0 ? model['3rd'].toLocaleString() : '-'}</td>
+      <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${model.sub > 0 ? model.sub.toLocaleString() : '-'}</td>
+    </tr>`;
+  });
+  
+  // เพิ่มแถวสรุป
+  html += `<tr class="hover:bg-gray-50">
+    <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">รวมทั้งหมด</td>
+    <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${data.totals.fc > 0 ? data.totals.fc.toLocaleString() : '-'}</td>
+    <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${data.totals.fb > 0 ? data.totals.fb.toLocaleString() : '-'}</td>
+    <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${data.totals.rc > 0 ? data.totals.rc.toLocaleString() : '-'}</td>
+    <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${data.totals.rb > 0 ? data.totals.rb.toLocaleString() : '-'}</td>
+    <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${data.totals['3rd'] > 0 ? data.totals['3rd'].toLocaleString() : '-'}</td>
+    <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${data.totals.sub > 0 ? data.totals.sub.toLocaleString() : '-'}</td>
+  </tr>`;
+  
+  tbody.innerHTML = html;
 }
 // 2. Quality summary
 async function updateQualityCards(data) {
@@ -693,7 +763,7 @@ function createParetoChart(canvasId, data, labels, title) {
         }
     });
 }
-// Create timeline chart for defects over time
+// 2. Create timeline chart for defects over time
 // ประโยชน์ของกราฟนี้:
 // 1.แสดงแนวโน้มของเสียว่าเพิ่มขึ้นหรือลดลงตามเวลา
 // 2.เห็น Pattern การเกิดของเสียในแต่ละช่วงเวลา
@@ -822,6 +892,120 @@ function updateKPIColors(elementId, value, reverse = false) {
         else element.classList.add('text-danger');
     }
 }
+
+// 3. สร้าง Line Performance Comparison Chart
+function createLinePerformanceChart(data) {
+    const canvas = document.getElementById('performanceComparisonChart');
+    if (!canvas) return;
+    
+    const existingChart = Chart.getChart(canvas);
+    if (existingChart) existingChart.destroy();
+    
+    const ctx = canvas.getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'bar',
+        plugins: [ChartDataLabels],
+        data: {
+            labels: data.map(item => item.process),
+            datasets: [{
+                label: 'Efficiency %',
+                data: data.map(item => parseFloat(item.efficiency)),
+                backgroundColor: data.map(item => {
+                    const eff = parseFloat(item.efficiency);
+                    // if (eff >= 101) return 'rgba(40, 167, 69, 0.8)';  // green
+                    // if (eff >= 93) return 'rgba(40, 167, 69, 0.8)';  // green
+                    // if (eff >= 80) return 'rgba(255, 193, 7, 0.8)';   // yellow
+                    // return 'rgba(220, 53, 69, 0.8)';                  // red
+                    return getColorByPercentage(eff) + 80;
+                }),
+                borderColor: data.map(item => {
+                    const eff = parseFloat(item.efficiency);
+                    // if (eff >= 101) return 'rgba(40, 167, 69, 1)';
+                    // if (eff >= 93) return 'rgba(40, 167, 69, 1)';
+                    // if (eff >= 80) return 'rgba(255, 193, 7, 1)';
+                    // return 'rgba(220, 53, 69, 1)';
+                    return getColorByPercentage(eff);
+                }),
+                borderWidth: 2,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                datalabels: {
+                    anchor: 'start',
+                    align: 'top',
+                    formatter: (value) => `${value.toFixed(2)}%`,
+                    font: { size: 11, weight: 'bold' }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Efficiency (%)' }
+                }
+            }
+        }
+    });
+}
+
+// 3. สร้าง Target vs Actual Chart
+function createTargetVsActualChart(data) {
+    const canvas = document.getElementById('targetVsActualChart');
+    if (!canvas) return;
+    
+    const existingChart = Chart.getChart(canvas);
+    if (existingChart) existingChart.destroy();
+    
+    const ctx = canvas.getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'bar',
+        plugins: [ChartDataLabels],
+        data: {
+            labels: data.map(item => item.process),
+            datasets: [
+                {
+                    label: 'Target',
+                    data: data.map(item => item.target_qty),
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 2,
+                    borderRadius: 4
+                },
+                {
+                    label: 'Actual',
+                    data: data.map(item => item.actual_qty),
+                    backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 2,
+                    borderRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: true },
+                datalabels: {
+                    anchor: 'start',
+                    align: 'top',
+                    formatter: (value) => `${value}`,
+                    font: { size: 10, weight: 'bold' }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Quantity (pieces)' }
+                }
+            }
+        }
+    });
+}
 // 3. สร้าง Efficiency Trend Chart
 function createEfficiencyTrendChart(data) {
     const canvas = document.getElementById('efficiencyTrendChart');
@@ -902,121 +1086,6 @@ function createEfficiencyTrendChart(data) {
         }
     });
 }
-// 3. สร้าง Line Performance Comparison Chart
-function createLinePerformanceChart(data) {
-    const canvas = document.getElementById('performanceComparisonChart');
-    if (!canvas) return;
-    
-    const existingChart = Chart.getChart(canvas);
-    if (existingChart) existingChart.destroy();
-    
-    const ctx = canvas.getContext('2d');
-    
-    new Chart(ctx, {
-        type: 'bar',
-        plugins: [ChartDataLabels],
-        data: {
-            labels: data.map(item => item.process),
-            datasets: [{
-                label: 'Efficiency %',
-                data: data.map(item => parseFloat(item.efficiency)),
-                backgroundColor: data.map(item => {
-                    const eff = parseFloat(item.efficiency);
-                    // if (eff >= 101) return 'rgba(40, 167, 69, 0.8)';  // green
-                    // if (eff >= 93) return 'rgba(40, 167, 69, 0.8)';  // green
-                    // if (eff >= 80) return 'rgba(255, 193, 7, 0.8)';   // yellow
-                    // return 'rgba(220, 53, 69, 0.8)';                  // red
-                    return getColorByPercentage(eff) + 80;
-                }),
-                borderColor: data.map(item => {
-                    const eff = parseFloat(item.efficiency);
-                    // if (eff >= 101) return 'rgba(40, 167, 69, 1)';
-                    // if (eff >= 93) return 'rgba(40, 167, 69, 1)';
-                    // if (eff >= 80) return 'rgba(255, 193, 7, 1)';
-                    // return 'rgba(220, 53, 69, 1)';
-                    return getColorByPercentage(eff);
-                }),
-                borderWidth: 2,
-                borderRadius: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { display: false },
-                datalabels: {
-                    anchor: 'start',
-                    align: 'top',
-                    formatter: (value) => `${value.toFixed(2)}%`,
-                    font: { size: 11, weight: 'bold' }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 120,
-                    title: { display: true, text: 'Efficiency (%)' }
-                }
-            }
-        }
-    });
-}
-
-// 3. สร้าง Target vs Actual Chart
-function createTargetVsActualChart(data) {
-    const canvas = document.getElementById('targetVsActualChart');
-    if (!canvas) return;
-    
-    const existingChart = Chart.getChart(canvas);
-    if (existingChart) existingChart.destroy();
-    
-    const ctx = canvas.getContext('2d');
-    
-    new Chart(ctx, {
-        type: 'bar',
-        plugins: [ChartDataLabels],
-        data: {
-            labels: data.map(item => item.process),
-            datasets: [
-                {
-                    label: 'Target',
-                    data: data.map(item => item.target_qty),
-                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 2,
-                    borderRadius: 4
-                },
-                {
-                    label: 'Actual',
-                    data: data.map(item => item.actual_qty),
-                    backgroundColor: 'rgba(255, 99, 132, 0.5)',
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                    borderWidth: 2,
-                    borderRadius: 4
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { display: true },
-                datalabels: {
-                    anchor: 'start',
-                    align: 'top',
-                    formatter: (value) => `${value}`,
-                    font: { size: 10, weight: 'bold' }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: { display: true, text: 'Quantity (pieces)' }
-                }
-            }
-        }
-    });
-}
-
 // 3. สร้าง Quality Performance Chart (Donut Chart)
 function createQualityPerformanceChart(kpis) {
     const canvas = document.getElementById('qualityPerformanceChart');
@@ -1084,6 +1153,7 @@ async function loadProductData() {
         
         // Load summary data
         await updateSummary();
+        await loadModelSummary();
 
         console.log('Report data loaded successfully');
         
