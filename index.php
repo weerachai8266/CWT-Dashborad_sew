@@ -465,7 +465,7 @@
                         </div>
                         <div class="col-md-2 d-flex justify-content-end gap-3 align-items-start">
                             <button id="performance_btnFilter" class="btn btn-primary">ตกลง</button>
-                            <button class="btn btn-success btn-export-date" data-module="performance">Export</button>
+                            <!-- <button class="btn btn-success btn-export-date" data-module="performance">Export</button> -->
                         </div>
                     </div>
                     <hr class="my-2">

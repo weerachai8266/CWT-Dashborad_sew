@@ -945,7 +945,7 @@ function createLinePerformanceChart(data) {
             plugins: {
                 legend: { display: false },
                 datalabels: {
-                    anchor: 'end',
+                    anchor: 'start',
                     align: 'top',
                     formatter: (value) => `${value.toFixed(2)}%`,
                     font: { size: 11, weight: 'bold' }
@@ -1001,7 +1001,7 @@ function createTargetVsActualChart(data) {
             plugins: {
                 legend: { display: true },
                 datalabels: {
-                    anchor: 'end',
+                    anchor: 'start',
                     align: 'top',
                     formatter: (value) => `${value}`,
                     font: { size: 10, weight: 'bold' }

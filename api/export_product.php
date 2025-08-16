@@ -163,6 +163,11 @@ function getShiftFromTime(string $time): string {
         return 'OT';
     }
 }
+function calculateCombinedRegularManHours(PDO $dbConnection, string $productionLine, string $startDate, string $endDate): float {
+    $morningHours = calculateManHours($dbConnection, $productionLine, $startDate, $endDate, 'เช้า');
+    $afternoonHours = calculateManHours($dbConnection, $productionLine, $startDate, $endDate, 'บ่าย');
+    return $morningHours + $afternoonHours;
+}
 /**
  * Calculate daily man-hours for specific line, date, and shift
  * @param PDO $dbConnection Database connection
@@ -206,6 +211,11 @@ function calculateDailyManHours(PDO $dbConnection, string $productionLine, strin
     } catch(Exception $e) {
         return 0.0;
     }
+}
+function calculateCombinedDailyRegularManHours(PDO $dbConnection, string $productionLine, string $targetDate): float {
+    $morningHours = calculateDailyManHours($dbConnection, $productionLine, $targetDate, 'เช้า');
+    $afternoonHours = calculateDailyManHours($dbConnection, $productionLine, $targetDate, 'บ่าย');
+    return $morningHours + $afternoonHours;
 }
 /**
  * Calculate man-hours for specific item at specific time
@@ -328,10 +338,9 @@ try {
     $summarySheet->setCellValue('B4', 'จำนวนชิ้นผลิต');
     $summarySheet->setCellValue('C4', 'จำนวนชิ้นตรวจ');
     $summarySheet->setCellValue('D4', 'โมเดลทั้งหมด');
-    $summarySheet->setCellValue('E4', 'Man-Hour เช้า');
-    $summarySheet->setCellValue('F4', 'Man-Hour บ่าย');
-    $summarySheet->setCellValue('G4', 'Man-Hour OT');
-    $summarySheet->setCellValue('H4', 'Man-Hour Total');
+    $summarySheet->setCellValue('E4', 'DayTime M-H');
+    $summarySheet->setCellValue('F4', 'OT M-H');
+    $summarySheet->setCellValue('G4', 'Total M-H');
 
     // Fill summary data
     $summaryRowIndex = 5;
@@ -357,28 +366,26 @@ try {
         $summarySheet->setCellValue('B' . $summaryRowIndex, $lineData['total_qty']);
         $summarySheet->setCellValue('C' . $summaryRowIndex, $qualityControlTotal);
         $summarySheet->setCellValue('D' . $summaryRowIndex, $lineData['unique_items']);
-        $summarySheet->setCellValue('E' . $summaryRowIndex, $morningManHours);
-        $summarySheet->setCellValue('F' . $summaryRowIndex, $afternoonManHours);
-        $summarySheet->setCellValue('G' . $summaryRowIndex, $overtimeManHours);
-        $summarySheet->setCellValue('H' . $summaryRowIndex, "=SUM(E{$summaryRowIndex}:G{$summaryRowIndex})");
-        
+        $summarySheet->setCellValue('E' . $summaryRowIndex, $morningManHours + $afternoonManHours);
+        $summarySheet->setCellValue('F' . $summaryRowIndex, $overtimeManHours);
+        $summarySheet->setCellValue('G' . $summaryRowIndex, "=SUM(E{$summaryRowIndex}:F{$summaryRowIndex})");
+
         $summaryRowIndex++;
 
     }
         // Auto-size columns
-        foreach (['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] as $columnLetter) {
+        foreach (['A', 'B', 'C', 'D', 'E', 'F', 'G'] as $columnLetter) {
             $summarySheet->getColumnDimension($columnLetter)->setAutoSize(true);
         }
 
         // Add borders
-        $summarySheet->getStyle("A4:H" . ($summaryRowIndex - 1))
+        $summarySheet->getStyle("A4:G" . ($summaryRowIndex - 1))
             ->getBorders()
             ->getAllBorders()
             ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
 
         // Bold headers
-        $summarySheet->getStyle('A4:H4')->getFont()->setBold(true);
-    
+        $summarySheet->getStyle('A4:G4')->getFont()->setBold(true);
 
     // ==================== DAILY MAN-HOUR SHEET ====================
     
@@ -393,10 +400,9 @@ try {
     // Column headers
     $manHourSheet->setCellValue('A4', 'วันที่');
     $manHourSheet->setCellValue('B4', 'ไลน์');
-    $manHourSheet->setCellValue('C4', 'เช้า');
-    $manHourSheet->setCellValue('D4', 'บ่าย');
-    $manHourSheet->setCellValue('E4', 'OT');
-    $manHourSheet->setCellValue('F4', 'รวม');
+    $manHourSheet->setCellValue('C4', 'DayTime');
+    $manHourSheet->setCellValue('D4', 'OT');
+    $manHourSheet->setCellValue('E4', 'รวม');
 
     // Generate date range
     $dateRange = [];
@@ -424,27 +430,26 @@ try {
             // Fill man-hour data
             $manHourSheet->setCellValue("A{$manHourRowIndex}", $targetDate);
             $manHourSheet->setCellValue("B{$manHourRowIndex}", $lineName);
-            $manHourSheet->setCellValue("C{$manHourRowIndex}", $dailyMorningHours);
-            $manHourSheet->setCellValue("D{$manHourRowIndex}", $dailyAfternoonHours);
-            $manHourSheet->setCellValue("E{$manHourRowIndex}", $dailyOvertimeHours);
-            $manHourSheet->setCellValue("F{$manHourRowIndex}", $dailyTotalHours);
+            $manHourSheet->setCellValue("C{$manHourRowIndex}", $dailyMorningHours + $dailyAfternoonHours);
+            $manHourSheet->setCellValue("D{$manHourRowIndex}", $dailyOvertimeHours);
+            $manHourSheet->setCellValue("E{$manHourRowIndex}", $dailyTotalHours);
             $manHourRowIndex++;
         }
     }
 
     // Format man-hour sheet
-    $manHourSheet->getStyle("A4:F4")->getFont()->setBold(true);
-    
+    $manHourSheet->getStyle("A4:E4")->getFont()->setBold(true);
+
     if ($manHourRowIndex > 5) {
         // Add borders to data area
-        $manHourSheet->getStyle("A4:F" . ($manHourRowIndex - 1))
+        $manHourSheet->getStyle("A4:E" . ($manHourRowIndex - 1))
             ->getBorders()
             ->getAllBorders()
             ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
     }
 
     // Auto-size columns
-    foreach (['A', 'B', 'C', 'D', 'E', 'F'] as $columnLetter) {
+    foreach (['A', 'B', 'C', 'D', 'E'] as $columnLetter) {
         $manHourSheet->getColumnDimension($columnLetter)->setAutoSize(true);
     }
 
@@ -456,11 +461,10 @@ try {
         $manHourSheet->setCellValue("C{$totalsRowIndex}", "=SUM(C5:C" . ($totalsRowIndex - 1) . ")");
         $manHourSheet->setCellValue("D{$totalsRowIndex}", "=SUM(D5:D" . ($totalsRowIndex - 1) . ")");
         $manHourSheet->setCellValue("E{$totalsRowIndex}", "=SUM(E5:E" . ($totalsRowIndex - 1) . ")");
-        $manHourSheet->setCellValue("F{$totalsRowIndex}", "=SUM(F5:F" . ($totalsRowIndex - 1) . ")");
         
         // Format totals row
-        $manHourSheet->getStyle("A{$totalsRowIndex}:F{$totalsRowIndex}")->getFont()->setBold(true);
-        $manHourSheet->getStyle("A{$totalsRowIndex}:F{$totalsRowIndex}")
+        $manHourSheet->getStyle("A{$totalsRowIndex}:E{$totalsRowIndex}")->getFont()->setBold(true);
+        $manHourSheet->getStyle("A{$totalsRowIndex}:E{$totalsRowIndex}")
             ->getBorders()
             ->getAllBorders()
             ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THICK);
@@ -488,14 +492,16 @@ try {
         $detailSheet->setCellValue('G1', 'วันที่');
         $detailSheet->setCellValue('H1', 'โมเดล');
         $detailSheet->setCellValue('I1', 'สรุปยอด');
-        $detailSheet->setCellValue('J1', 'รวม Man-Hour');
+        $detailSheet->setCellValue('J1', 'DayTime M-H'); // เปลี่ยนชื่อคอลัมน์
+        $detailSheet->setCellValue('K1', 'OT M-H');      // เพิ่มคอลัมน์ใหม่
+        $detailSheet->setCellValue('L1', 'รวม M-H');
 
         // Summary headers for QC
-        $detailSheet->setCellValue('L1', 'วันที่');
-        $detailSheet->setCellValue('M1', 'โมเดล');
-        $detailSheet->setCellValue('N1', 'ชิ้นส่วน');
-        $detailSheet->setCellValue('O1', 'ชื่อ');
-        $detailSheet->setCellValue('P1', 'สรุปยอด');
+        $detailSheet->setCellValue('N1', 'วันที่');
+        $detailSheet->setCellValue('O1', 'โมเดล');
+        $detailSheet->setCellValue('P1', 'ชิ้นส่วน');
+        $detailSheet->setCellValue('Q1', 'ชื่อ');
+        $detailSheet->setCellValue('R1', 'สรุปยอด');
 
         $detailRowIndex = 2;
         
@@ -673,10 +679,11 @@ try {
             $totalQuantity = $prodSummary['total_qty'];
             $modelDate = $prodSummary['date'];
             
-            // Calculate total man-hours for this date (all shifts combined)
-            $totalManHours = calculateDailyManHours($conn, $lineCode, $modelDate, 'เช้า') +
-                           calculateDailyManHours($conn, $lineCode, $modelDate, 'บ่าย') +
-                           calculateDailyManHours($conn, $lineCode, $modelDate, 'OT');
+            // แยกคำนวณ man-hours สำหรับ DayTime และ OT
+            $dayTimeManHours = calculateDailyManHours($conn, $lineCode, $modelDate, 'เช้า') +
+                            calculateDailyManHours($conn, $lineCode, $modelDate, 'บ่าย');
+            $overtimeManHours = calculateDailyManHours($conn, $lineCode, $modelDate, 'OT');
+            $totalManHours = $dayTimeManHours + $overtimeManHours;
             
             // If there are multiple models on the same date, proportionally distribute man-hours
             $totalProductionOnDate = 0;
@@ -687,29 +694,33 @@ try {
             }
             
             // Distribute man-hours proportionally based on production quantity
-            $proportionalManHours = $totalProductionOnDate > 0 ? 
-                ($totalManHours * $totalQuantity / $totalProductionOnDate) : 0;
+            $proportionFactor = $totalProductionOnDate > 0 ? ($totalQuantity / $totalProductionOnDate) : 0;
+            $proportionalDayTimeHours = $dayTimeManHours * $proportionFactor;
+            $proportionalOTHours = $overtimeManHours * $proportionFactor;
+            $proportionalTotalHours = $proportionalDayTimeHours + $proportionalOTHours;
             
             $detailSheet->setCellValue("G{$summaryRowIndex}", $prodSummary['date']);
             $detailSheet->setCellValue("H{$summaryRowIndex}", $prodSummary['model']);
             $detailSheet->setCellValue("I{$summaryRowIndex}", $totalQuantity);
-            $detailSheet->setCellValue("J{$summaryRowIndex}", round($proportionalManHours, 2));
+            $detailSheet->setCellValue("J{$summaryRowIndex}", round($proportionalDayTimeHours, 2));
+            $detailSheet->setCellValue("K{$summaryRowIndex}", round($proportionalOTHours, 2));
+            $detailSheet->setCellValue("L{$summaryRowIndex}", round($proportionalTotalHours, 2));
             $summaryRowIndex++;
         }
 
         // Fill QC summary (columns L, M, N, O, P)
         $qcSummaryRowIndex = 2;
         foreach ($qcSummaryByComponent as $qcSummary) {
-            $detailSheet->setCellValue("L{$qcSummaryRowIndex}", $qcSummary['date']);
-            $detailSheet->setCellValue("M{$qcSummaryRowIndex}", $qcSummary['model']);      // โมเดล
-            $detailSheet->setCellValue("N{$qcSummaryRowIndex}", $qcSummary['component']);  // ชิ้นส่วน
-            $detailSheet->setCellValue("O{$qcSummaryRowIndex}", $qcSummary['nickname']);   // ชื่อ
-            $detailSheet->setCellValue("P{$qcSummaryRowIndex}", $qcSummary['total_qty']);  // สรุปยอด
+            $detailSheet->setCellValue("N{$qcSummaryRowIndex}", $qcSummary['date']);
+            $detailSheet->setCellValue("O{$qcSummaryRowIndex}", $qcSummary['model']);      // โมเดล
+            $detailSheet->setCellValue("P{$qcSummaryRowIndex}", $qcSummary['component']);  // ชิ้นส่วน
+            $detailSheet->setCellValue("Q{$qcSummaryRowIndex}", $qcSummary['nickname']);   // ชื่อ
+            $detailSheet->setCellValue("R{$qcSummaryRowIndex}", $qcSummary['total_qty']);  // สรุปยอด
             $qcSummaryRowIndex++;
         }
 
         // Format detail sheet
-        foreach (['A', 'B', 'C', 'D', 'E', 'G', 'H', 'I', 'J', 'L', 'M', 'N', 'O', 'P'] as $columnLetter) {
+        foreach (['A', 'B', 'C', 'D', 'E', 'G', 'H', 'I', 'J', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'] as $columnLetter) {
             $detailSheet->getColumnDimension($columnLetter)->setAutoSize(true);
         }
 
@@ -721,7 +732,7 @@ try {
 
         // Add borders to production summary (with Man-Hour)
         if ($summaryRowIndex > 2) {
-            $detailSheet->getStyle("G1:J" . ($summaryRowIndex - 1))
+            $detailSheet->getStyle("G1:L" . ($summaryRowIndex - 1))
                 ->getBorders()
                 ->getAllBorders()
                 ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
@@ -729,7 +740,7 @@ try {
 
         // Add borders to QC summary
         if ($qcSummaryRowIndex > 2) {
-            $detailSheet->getStyle("L1:P" . ($qcSummaryRowIndex - 1))
+            $detailSheet->getStyle("N1:R" . ($qcSummaryRowIndex - 1))
                 ->getBorders()
                 ->getAllBorders()
                 ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
@@ -737,10 +748,10 @@ try {
 
         // Bold all headers
         $detailSheet->getStyle('A1:E1')->getFont()->setBold(true);
-        $detailSheet->getStyle('G1:J1')->getFont()->setBold(true);
-        $detailSheet->getStyle('L1:P1')->getFont()->setBold(true);
-    }    
-   
+        $detailSheet->getStyle('G1:L1')->getFont()->setBold(true);
+        $detailSheet->getStyle('N1:R1')->getFont()->setBold(true);
+    }
+
     // ==================== EXPORT EXCEL FILE ====================
     
     $exportFilename = 'production_report_' . $reportStartDate . 
