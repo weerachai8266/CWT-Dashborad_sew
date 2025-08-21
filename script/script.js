@@ -467,13 +467,13 @@ function updateModelSummaryTable(data) {
   
   // เพิ่มแถวสรุป
   html += `<tr>
-    <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">รวมทั้งหมด</td>
-    <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${data.totals.fc > 0 ? data.totals.fc.toLocaleString() : '-'}</td>
-    <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${data.totals.fb > 0 ? data.totals.fb.toLocaleString() : '-'}</td>
-    <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${data.totals.rc > 0 ? data.totals.rc.toLocaleString() : '-'}</td>
-    <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${data.totals.rb > 0 ? data.totals.rb.toLocaleString() : '-'}</td>
-    <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${data.totals['3rd'] > 0 ? data.totals['3rd'].toLocaleString() : '-'}</td>
-    <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${data.totals.sub > 0 ? data.totals.sub.toLocaleString() : '-'}</td>
+    <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-gray-900 text-center">รวมทั้งหมด</td>
+    <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-gray-900 text-center">${data.totals.fc > 0 ? data.totals.fc.toLocaleString() : '-'}</td>
+    <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-gray-900 text-center">${data.totals.fb > 0 ? data.totals.fb.toLocaleString() : '-'}</td>
+    <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-gray-900 text-center">${data.totals.rc > 0 ? data.totals.rc.toLocaleString() : '-'}</td>
+    <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-gray-900 text-center">${data.totals.rb > 0 ? data.totals.rb.toLocaleString() : '-'}</td>
+    <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-gray-900 text-center">${data.totals['3rd'] > 0 ? data.totals['3rd'].toLocaleString() : '-'}</td>
+    <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-gray-900 text-center">${data.totals.sub > 0 ? data.totals.sub.toLocaleString() : '-'}</td>
   </tr>`;
   
   tbody.innerHTML = html;
