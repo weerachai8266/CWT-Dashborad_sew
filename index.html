@@ -11,6 +11,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -30,20 +32,29 @@
 </head>
 <body>
     <!-- Header Navbar -->
-    <nav class="navbar navbar-light bg-light border-bottom fixed-top px-3">
+    <nav class="navbar navbar-expand-lg shadow-sm bg-white border-bottom fixed-top px-3">
         <div class="container-fluid">
-            <div class="d-flex align-items-center gap-3">
-                <img src="img/logo-chaiwattana.png" alt="CWT Logo" loading="lazy" style="height: 40px;">
+            <div class="d-flex align-items-center">
+                <img src="img/logo.png" alt="CWT Logo" loading="lazy" class="me-3" style="height: 42px;">
+                <div class="navbar-brand d-none d-md-block">
+                    <h5 class="mb-0 fw-semibold text-primary">Chaiwattana</h5>
+                    <small class="text-muted">Manufacturing Solutions</small>
+                </div>
             </div>
-            <!-- <div class="d-flex align-items-center gap-3">
-                <img src="img/seat.png" alt="CWT Logo" style="height: 40px;">
-            </div> -->
-            <span class="navbar-brand mb-0 h1 fw-semibold mx-auto">Dashboard</span>
+            
+            <h1 class="navbar-brand mb-0 mx-auto d-flex align-items-center">
+                <i class="fas fa-chart-line text-primary me-2"></i>
+                <span class="fw-bold" style="background: linear-gradient(45deg, #3498db, #1abc9c); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                    PRODUCTION DASHBOARD
+                </span>
+            </h1>
+            
             <div class="d-flex align-items-center gap-3">
-                <img src="img/cwt.png" alt="CWT Logo" loading="lazy" style="height: 40px;">
+                <img src="img/cwt.png" alt="CWT Logo" loading="lazy" style="height: 42px;">
             </div>
         </div>
     </nav>
+
     <!-- Main Container -->
     <div class="d-flex">  
         <!-- Sidebar -->
@@ -117,7 +128,7 @@
                         
                     </div>  <!-- End of Report Filter -->
 
-                    <hr class="my-2">
+                    <!-- <hr class="my-2"> -->
 
                     <!-- Loading State -->
                     <div id="loadingState" class="d-none text-center mb-3">
@@ -371,7 +382,7 @@
                             <button class="btn btn-success btn-export-date" data-module="quality">Export</button>
                         </div>
                     </div>  <!-- End of quality Filter -->
-                    <hr class="my-2">
+                    <!-- <hr class="my-2"> -->
                     <div class="row mt-3">
                         <div class="col-12 mb-4">
                             <div class="card">
@@ -565,7 +576,7 @@
                             <!-- <button class="btn btn-success btn-export-date" data-module="performance">Export</button> -->
                         </div>
                     </div>
-                    <hr class="my-2">
+                    <!-- <hr class="my-3"> -->
 
                     <!-- Performance KPI Cards -->
                     <div class="row mt-3">

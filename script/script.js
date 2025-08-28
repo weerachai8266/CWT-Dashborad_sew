@@ -489,7 +489,7 @@ async function updateQualityCards(data) {
             processData[key] = {
                 total_qty: item.count
             };
-        });
+        });        
         // ดึงข้อมูลการผลิตตามวันที่ใน quality filter แทน
         const start_date = document.getElementById('quality_date_start').value;
         const end_date = document.getElementById('quality_date_end').value;
@@ -499,21 +499,21 @@ async function updateQualityCards(data) {
         const productionResult = await productionResponse.json();
         const summaryData = productionResult.success ? productionResult.data : {};
 
-        const lines = ['fc', 'fb', 'rc', 'rb', 'third', 'sub'];
-        
+        const lines = ['fc', 'fb', 'rc', 'rb', '3rd', 'sub'];
         lines.forEach(line => {
-            const elementId = line === 'third' ? 'quality3RD' : `quality${line.toUpperCase()}`;
-            const labelId = line === 'third' ? 'labelquality3RD' : `labelquality${line.toUpperCase()}`;
-            const qualityId = line === 'third' ? 'percentagequality3RD' : `percentagequality${line.toUpperCase()}`;
+            const elementId = line === '3rd' ? 'quality3RD' : `quality${line.toUpperCase()}`;
+            const labelId = line === '3rd' ? 'labelquality3RD' : `labelquality${line.toUpperCase()}`;
+            const qualityId = line === '3rd' ? 'percentagequality3RD' : `percentagequality${line.toUpperCase()}`;
             
             const element = document.getElementById(elementId);
-            const labelElement = document.getElementById(labelId);
+            // const labelElement = document.getElementById(labelId);
             const qualityElement = document.getElementById(qualityId);
             
             if (element) {
                 // ดึงข้อมูลจาก processData หรือใส่ค่า default เป็น 0
                 const lineData = processData[line] || { total_qty: 0 };
-                const productionData = summaryData[line] || { total_qty: 0 };
+                const productionData = summaryData[line === '3rd' ? 'third' : line] || { total_qty: 0 };
+                // console.log('check data:', summaryData);
                 
                 // คำนวณเปอร์เซ็นต์ของเสีย
                 const defectPercentage = productionData.total_qty > 0 
@@ -787,7 +787,7 @@ function createTimelineChart(data) {
                 data: counts,
                 borderColor: 'rgba(75, 192, 192, 1)',
                 tension: 0.3,
-                fill: true,
+                fill: true,                
                 backgroundColor: 'rgba(75, 192, 192, 0.2)'
             }]
         },
@@ -823,10 +823,24 @@ function createTimelineChart(data) {
                 }
             },
             scales: {
+                // x: {
+                //     title: {
+                //         display: true,
+                //         text: 'วันที่'
+                //     }
+                // },
                 x: {
                     title: {
                         display: true,
                         text: 'วันที่'
+                    },
+                    ticks: {
+                        maxTicksLimit: 15, // จำกัดจำนวน label ที่แสดงไม่ให้เยอะเกินไป
+                        callback: function(value, index) {
+                            // แสดงทุก 3-5 วัน ขึ้นอยู่กับจำนวนข้อมูล
+                            const step = Math.ceil(data.length / 10);
+                            return (index % step === 0) ? this.getLabelForValue(value) : '';
+                        }
                     }
                 },
                 y: {
@@ -840,7 +854,7 @@ function createTimelineChart(data) {
         }   
     });
 }
-// ดึงข้อมูล Cross-tab จาก API
+// 2. ดึงข้อมูล Cross-tab จาก API
 async function fetchCrossTabData() {
     const start_date = document.getElementById('quality_date_start').value;
     const end_date = document.getElementById('quality_date_end').value;
