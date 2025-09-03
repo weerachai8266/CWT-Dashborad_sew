@@ -34,27 +34,27 @@ const PERCENTAGE_COLORS = {
     good: '#28a745',        // 95-104%
     excellent: '#007bff'    // 105%+
 };
-
+// Get emoji based on percentage
 function getStatusEmoji(percentage) {
     if (percentage >= 101) return '🔵';
-    if (percentage >= 93) return '🟢';
-    if (percentage >= 80) return '🟡';
+    if (percentage >= 95) return '🟢';
+    if (percentage >= 85) return '🟡';
     return '🔴';
 }
-
+// แก้บรรทัดที่ 1608 ด้วย
 // Get color based on percentage
 function getColorByPercentage(percentage) {
     if (percentage >= 101) return PERCENTAGE_COLORS.excellent;
-    if (percentage >= 93) return PERCENTAGE_COLORS.good;
-    if (percentage >= 80) return PERCENTAGE_COLORS.warning;
+    if (percentage >= 95) return PERCENTAGE_COLORS.good;
+    if (percentage >= 85) return PERCENTAGE_COLORS.warning;
     return PERCENTAGE_COLORS.critical;
 }
 
 // Get CSS class based on percentage
 function getPercentageClass(percentage) {
     if (percentage >= 101) return 'percentage-excellent';
-    if (percentage >= 93) return 'percentage-good';
-    if (percentage >= 80) return 'percentage-warning';
+    if (percentage >= 95) return 'percentage-good';
+    if (percentage >= 85) return 'percentage-warning';
     return 'percentage-critical';
 }
 
@@ -1606,8 +1606,8 @@ function addChartTooltips() {
                             const percentage = context.parsed.y;
                             let status = '';
                             if (percentage >= 101) status = '🔵 เกินเป้าหมาย';
-                            else if (percentage >= 93) status = '🟢 ตามเป้าหมาย';
-                            else if (percentage >= 80) status = '🟡 ใกล้เป้าหมาย';
+                            else if (percentage >= 95) status = '🟢 ตามเป้าหมาย';
+                            else if (percentage >= 85) status = '🟡 ใกล้เป้าหมาย';
                             else status = '🔴 ต่ำกว่าเป้าหมาย';
                             
                             return status;
