@@ -156,7 +156,7 @@ class get_db {
 
             $query = "SELECT DISTINCT HOUR(created_at) as hour 
                       FROM " . $table_name . " 
-                      WHERE DATE(created_at) BETWEEN :start_date AND :end_date ORDER BY hour";
+                      WHERE DATE(created_at) BETWEEN :start_date AND :end_date and status = '10' ORDER BY hour";
             
             try {
                 $stmt = $this->conn->prepare($query);
@@ -217,8 +217,8 @@ class get_db {
                         SUM(qty) as total_qty,
                         COUNT(*) as total_items
                       FROM " . $table_name . "
-                      WHERE DATE(created_at) BETWEEN :start_date AND :end_date GROUP BY HOUR(created_at) ORDER BY hour";
-            
+                      WHERE DATE(created_at) BETWEEN :start_date AND :end_date and status = '10' GROUP BY HOUR(created_at) ORDER BY hour";
+
             try {
                 $stmt = $this->conn->prepare($query);
                 $stmt->bindParam(':start_date', $start_date);
@@ -297,7 +297,7 @@ class get_db {
                         SUM(qty) as total_qty,
                         COUNT(*) as total_items
                       FROM " . $table_name . " 
-                      WHERE DATE(created_at) BETWEEN :start_date AND :end_date GROUP BY DATE(created_at) ORDER BY date";
+                      WHERE DATE(created_at) BETWEEN :start_date AND :end_date GROUP BY DATE(created_at) ORDER BY date and status = '10'";
             
             try {
                 $stmt = $this->conn->prepare($query);
@@ -356,8 +356,8 @@ class get_db {
                         COUNT(*) as total_items,
                         COUNT(DISTINCT item) as unique_items
                       FROM " . $table_name . "
-                      WHERE DATE(created_at) BETWEEN :start_date AND :end_date";
-            
+                      WHERE DATE(created_at) BETWEEN :start_date AND :end_date and status = '10'";
+
             try {
                 $stmt = $this->conn->prepare($query);
                 $stmt->bindParam(':start_date', $start_date);
@@ -410,7 +410,7 @@ class get_db {
                         HOUR(created_at) as hour,
                         SUM(qty) as total_qty
                       FROM " . $table_name . "
-                      WHERE DATE(created_at) BETWEEN :start_date AND :end_date
+                      WHERE DATE(created_at) BETWEEN :start_date AND :end_date and status = '10'
                       GROUP BY HOUR(created_at)
                       HAVING total_qty > 0
                       ORDER BY hour";
@@ -462,7 +462,7 @@ class get_db {
                         DATE(created_at) as date, 
                         TIME(created_at) as time
                     FROM $table_name
-                    WHERE DATE(created_at) BETWEEN :start_date AND :end_date 
+                    WHERE DATE(created_at) BETWEEN :start_date AND :end_date and status = '10'
                     ORDER BY created_at ASC";
 
             try {

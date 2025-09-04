@@ -65,7 +65,7 @@ function fetchQualityControlItems(PDO $pdo, string $productionLine, string $star
         // Fetch QC data within date range
         $sql = "SELECT item, qty, created_at 
                 FROM {$tableName}
-                WHERE DATE(created_at) BETWEEN :start_date AND :end_date
+                WHERE DATE(created_at) BETWEEN :start_date AND :end_date and status = '10'
                 ORDER BY created_at ASC";
                 
         $statement = $pdo->prepare($sql);

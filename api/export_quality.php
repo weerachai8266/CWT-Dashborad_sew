@@ -142,7 +142,7 @@ try {
             $conn,
             "SELECT item, qty, created_at
              FROM {$tbl}
-             WHERE DATE(created_at) BETWEEN :s AND :e",
+             WHERE DATE(created_at) BETWEEN :s AND :e AND status = '10'",
             [':s'=>$startDate, ':e'=>$endDate]
         );
     }
