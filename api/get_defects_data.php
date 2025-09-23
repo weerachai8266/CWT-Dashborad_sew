@@ -11,9 +11,9 @@ include(__DIR__ . "/../config/db.php"); // เชื่อมต่อฐาน�
 $start_date = !empty($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-d');
 $end_date = !empty($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
 
-if (!strtotime($start_date) || !strtotime($end_date)) {
-    throw new Exception('Invalid date format');
-}
+// if (!strtotime($start_date) || !strtotime($end_date)) {
+//     throw new Exception('Invalid date format');
+// }
 
 try {
     // ทดสอบการเชื่อมต่อ Database
@@ -50,9 +50,7 @@ try {
                     SUM(qty) as total_defects, 
                     GROUP_CONCAT(DISTINCT process) as processes
                 FROM qc_ng 
-                WHERE DATE(created_at) BETWEEN 
-                DATE_FORMAT(?, '%Y-%m-01') AND 
-                LAST_DAY(?)
+                WHERE DATE(created_at) BETWEEN ? AND ? 
                 GROUP BY DATE(created_at)
                 ORDER BY defect_date";
 
@@ -69,7 +67,7 @@ try {
     $model_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $stmt = $conn->prepare($sql_timeline);
-    $stmt->execute([$start_date, $end_date]);
+    $stmt->execute([date('Y-m-01', strtotime($start_date)), $end_date]);
     $timeline_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // ตรวจสอบข้อมูลว่างเปล่า

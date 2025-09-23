@@ -642,7 +642,7 @@ function createParetoChart(canvasId, data, labels, title) {
             labels: sortedLabels,            
             datasets: [
                 {
-                    label: 'จำนวนของเสีย',
+                    label: 'Defect Quantity',
                     data: sortedData,
                     backgroundColor: 'rgba(54, 162, 235, 0.5)',
                     borderColor: 'rgba(54, 162, 235, 1)',
@@ -732,7 +732,7 @@ function createParetoChart(canvasId, data, labels, title) {
                     max: Math.ceil(maxDataValue * 1.2), // เพิ่ม margin ให้สูงสุด
                     title: {
                         display: true,
-                        text: 'จำนวนของเสีย (ชิ้น)'
+                        text: 'Defect Quantity (Pieces)'
                     },
                     ticks: {
                         stepSize: Math.ceil(maxDataValue / 10),
@@ -783,7 +783,7 @@ function createTimelineChart(data) {
         data: {
             labels: dates,
             datasets: [{
-                label: 'จำนวนของเสียรวม',
+                label: 'Total Defect Quantity',
                 data: counts,
                 borderColor: 'rgba(75, 192, 192, 1)',
                 tension: 0.3,
@@ -832,7 +832,7 @@ function createTimelineChart(data) {
                 x: {
                     title: {
                         display: true,
-                        text: 'วันที่'
+                        // text: 'วันที่'
                     },
                     ticks: {
                         maxTicksLimit: 15, // จำกัดจำนวน label ที่แสดงไม่ให้เยอะเกินไป
@@ -847,7 +847,7 @@ function createTimelineChart(data) {
                     beginAtZero: true,
                     title: {
                         display: true,
-                        text: 'จำนวนของเสีย (ชิ้น)'
+                        text: 'Defect Quantity (Pieces)'
                     }
                 }
             }
@@ -1278,7 +1278,7 @@ function createEfficiencyTrendChart(data) {
                 x: {
                     title: {
                         display: true,
-                        text: 'วันที่'
+                        // text: 'วันที่'
                     },
                     ticks: {
                         maxTicksLimit: 15, // จำกัดจำนวน label ที่แสดงไม่ให้เยอะเกินไป
