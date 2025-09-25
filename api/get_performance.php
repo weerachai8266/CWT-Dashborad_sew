@@ -115,6 +115,7 @@ try {
             if ($summary_data) {
                 $total_actual = 0;
                 $total_target = 0;
+                $total_employees_man_hours = 0;
 
                 // // ✅ ดึง manpower (เหมือนเดิม)
                 // $total_employees_man_hours = 0;
@@ -332,6 +333,95 @@ try {
             // Debug การคำนวณ target แบบละเอียด
             break;
             
+        case 'grafana_metrics':
+            // Format สำหรับ SimpleJSON/JSON API Plugin
+            $kpis = calculatePerformanceKPIs($db_handler, $conn, $start_date, $end_date);
+            
+            // แปลงเป็น format ที่ Grafana ต้องการ
+            $metrics = [];
+            foreach ($kpis as $key => $value) {
+                $metrics[] = [
+                    'target' => $key,
+                    'datapoints' => [
+                        [$value, strtotime($end_date) * 1000] // Grafana ต้องการ timestamp ในหน่วย milliseconds
+                    ]
+                ];
+            }
+            
+            // เพิ่มข้อมูล Output
+            $summary = $db_handler->getSummaryReport($start_date, $end_date, 'pieces');
+            $total_output = 0;
+            if ($summary) {
+                foreach ($summary as $line => $data) {
+                    $total_output += (int)($data['total_qty'] ?? 0);
+                }
+            }
+            
+            $metrics[] = [
+                'target' => 'total_output',
+                'datapoints' => [
+                    [$total_output, strtotime($end_date) * 1000]
+                ]
+            ];
+            
+            $response['data'] = $metrics;
+            break;
+
+        case 'grafana_timeseries':
+            // Format สำหรับ Time Series
+            $trend = getEfficiencyTrend($db_handler, $start_date, $end_date, 'daily');
+            $series = [];
+            
+            // Efficiency Trend
+            $efficiency_series = [
+                'target' => 'Efficiency (%)',
+                'datapoints' => []
+            ];
+            
+            // Quality Performance (คำนวณจากข้อมูลที่มี)
+            $quality_series = [
+                'target' => 'Quality Rate (%)',
+                'datapoints' => []
+            ];
+            
+            foreach ($trend as $point) {
+                $timestamp = strtotime($point['period']) * 1000;
+                $eff = is_numeric($point['efficiency']) ? floatval($point['efficiency']) : 0;
+                $efficiency_series['datapoints'][] = [$eff, intval($timestamp)];
+
+                // Quality Rate
+                try {
+                    $daily_kpis = calculatePerformanceKPIs($db_handler, $conn, $point['period'], $point['period']);
+                    $quality_rate = isset($daily_kpis['quality_rate']) && is_numeric($daily_kpis['quality_rate']) ? floatval($daily_kpis['quality_rate']) : 100;
+                    $quality_series['datapoints'][] = [$quality_rate, intval($timestamp)];
+                } catch (Exception $e) {
+                    $quality_series['datapoints'][] = [100, intval($timestamp)];
+                }
+            }
+            
+            $series[] = $efficiency_series;
+            $series[] = $quality_series;
+            
+            $response['data'] = $series;
+            break;
+
+        case 'grafana_line_performance':
+            // Line Performance สำหรับ Bar Chart
+            $line_perf = getLinePerformance($db_handler, $start_date, $end_date);
+            $series = [];
+            
+            foreach ($line_perf as $line) {
+                $series[] = [
+                    'target' => $line['process'],
+                    'datapoints' => [
+                        [$line['efficiency'], strtotime($end_date) * 1000]
+                    ]
+                ];
+            }
+            
+            $response['data'] = $series;
+            break;
+
         default:
             throw new Exception('Invalid action parameter. Available actions: kpis, efficiency_trend, line_performance, all, methods, debug');
     }
