@@ -1,14 +1,4 @@
 <?php
-/**
- * Production Report Export to Excel
- * Exports production data, QC data, and man-hour data to Excel file
- * 
- * Features:
- * - Summary sheet with production, QC, and man-hour totals
- * - Detail sheets per production line
- * - Daily man-hour breakdown sheet
- */
-
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -527,150 +517,114 @@ try {
         $detailSheet = $excelWorkbook->createSheet();
         $detailSheet->setTitle(cleanSheetTitle($productionLineNames[$lineCode]));
 
-        // Detail sheet headers
-        $detailSheet->setCellValue('A1', 'โมเดล');
-        $detailSheet->setCellValue('B1', 'ชิ้นส่วน');
-        $detailSheet->setCellValue('C1', 'จำนวน');
-        $detailSheet->setCellValue('D1', 'วันที่');
-        $detailSheet->setCellValue('E1', 'เวลา');
+        // Production Detail Headers
+        $detailSheet->setCellValue('A1', 'โมเดล (Production)');
+        $detailSheet->setCellValue('B1', 'จำนวน');
+        $detailSheet->setCellValue('C1', 'วันที่');
+        $detailSheet->setCellValue('D1', 'เวลา');
+
+        // QC Detail Headers
+        $detailSheet->setCellValue('F1', 'โมเดล (QC)');
+        $detailSheet->setCellValue('G1', 'ชิ้นส่วน');
+        $detailSheet->setCellValue('H1', 'ชื่อ');
+        $detailSheet->setCellValue('I1', 'จำนวน');
+        $detailSheet->setCellValue('J1', 'วันที่');
+        $detailSheet->setCellValue('K1', 'เวลา');
 
         // Summary headers for production
-        $detailSheet->setCellValue('G1', 'วันที่');
-        $detailSheet->setCellValue('H1', 'โมเดล');
-        $detailSheet->setCellValue('I1', 'สรุปยอด');
-        $detailSheet->setCellValue('J1', 'DayTime M-H'); // เปลี่ยนชื่อคอลัมน์
-        $detailSheet->setCellValue('K1', 'OT M-H');      // เพิ่มคอลัมน์ใหม่
-        $detailSheet->setCellValue('L1', 'รวม M-H');
+        $detailSheet->setCellValue('M1', 'วันที่');
+        $detailSheet->setCellValue('N1', 'โมเดล');
+        $detailSheet->setCellValue('O1', 'สรุปยอด');
+        $detailSheet->setCellValue('P1', 'DayTime M-H'); // เปลี่ยนชื่อคอลัมน์
+        $detailSheet->setCellValue('Q1', 'OT M-H');      // เพิ่มคอลัมน์ใหม่
+        $detailSheet->setCellValue('R1', 'รวม M-H');
 
         // Summary headers for QC
-        $detailSheet->setCellValue('N1', 'วันที่');
-        $detailSheet->setCellValue('O1', 'โมเดล');
-        $detailSheet->setCellValue('P1', 'ชิ้นส่วน');
-        $detailSheet->setCellValue('Q1', 'ชื่อ');
-        $detailSheet->setCellValue('R1', 'สรุปยอด');
-
-        $detailRowIndex = 2;
-        
+        $detailSheet->setCellValue('T1', 'วันที่');
+        $detailSheet->setCellValue('U1', 'โมเดล');
+        $detailSheet->setCellValue('V1', 'ชิ้นส่วน');
+        $detailSheet->setCellValue('W1', 'ชื่อ');
+        $detailSheet->setCellValue('X1', 'สรุปยอด');        
+                
         // Get QC data for this line
         $qualityControlRecords = fetchQualityControlItems($conn, $lineCode, $reportStartDate, $reportEndDate);
         
         // Create item mapping for QC data (ชิ้นส่วน -> โมเดล และ nickname)
         $itemMapping = [];
-        try {
-            $itemCodes = array_values(array_unique(array_column($qualityControlRecords, 'item')));
-            
-            // Check if we have item codes before creating query
-            if (!empty($itemCodes)) {
-                // Add AS- prefix to item codes for database lookup
-                $itemCodesWithPrefix = array_map(function($itemCode) {
-                    return 'AS-' . $itemCode;
-                }, $itemCodes);                
+            try {
+                $itemCodes = array_values(array_unique(array_column($qualityControlRecords, 'item')));
                 
-                // Create placeholders for prepared statement
-                $placeholders = str_repeat('?,', count($itemCodesWithPrefix) - 1) . '?';
-                $itemQuery = "SELECT item, model, nickname FROM item WHERE item IN ({$placeholders})";
-                
-                $itemStmt = $conn->prepare($itemQuery);
-                $itemStmt->execute($itemCodesWithPrefix);
-                
-                $foundItems = [];
-                $rowCount = 0;
-                while ($itemRow = $itemStmt->fetch(PDO::FETCH_ASSOC)) {
-                    $rowCount++;
-                    $foundItems[] = $itemRow['item'];
-                    $itemMapping[$itemRow['item']] = [
-                        'model' => $itemRow['model'] ?? '',
-                        'nickname' => $itemRow['nickname'] ?? ''
-                    ];
-                }                
-            }
-        } catch (Exception $e) {
-            // If item mapping fails, continue with empty mapping
-            $itemMapping = [];
-        }
-
-        // Group QC records by date
-        $qcRecordsByDate = [];
-        foreach ($qualityControlRecords as $qcRecord) {
-            $recordDateTime = !empty($qcRecord['created_at']) ? new DateTime($qcRecord['created_at']) : null;
-            $recordDate = $recordDateTime ? $recordDateTime->format('Y-m-d') : '';
-            $recordTime = $recordDateTime ? $recordDateTime->format('H:i:s') : '';
-            
-            if ($recordDate) {
-                if (!isset($qcRecordsByDate[$recordDate])) {
-                    $qcRecordsByDate[$recordDate] = [];
+                if (!empty($itemCodes)) {
+                    $itemCodesWithPrefix = array_map(function($itemCode) {
+                        return (strpos($itemCode, 'AS-') === 0) ? $itemCode : 'AS-' . $itemCode;
+                    }, $itemCodes);
+                    
+                    $placeholders = str_repeat('?,', count($itemCodesWithPrefix) - 1) . '?';
+                    $itemQuery = "SELECT item, model, nickname FROM item WHERE item IN ({$placeholders})";
+                    
+                    $itemStmt = $conn->prepare($itemQuery);
+                    $itemStmt->execute($itemCodesWithPrefix);
+                    
+                    while ($itemRow = $itemStmt->fetch(PDO::FETCH_ASSOC)) {
+                        $itemWithPrefix = $itemRow['item'];
+                        $itemWithoutPrefix = str_replace('AS-', '', $itemWithPrefix);
+                        
+                        $mappingData = [
+                            'model' => $itemRow['model'] ?? '',
+                            'nickname' => $itemRow['nickname'] ?? ''
+                        ];
+                        
+                        $itemMapping[$itemWithPrefix] = $mappingData;
+                        $itemMapping[$itemWithoutPrefix] = $mappingData;
+                    }
                 }
-                $qcRecordsByDate[$recordDate][] = [
-                    'component' => $qcRecord['item'] ?? '',
-                    'qty' => (int)($qcRecord['qty'] ?? 1),
-                    'time' => $recordTime,
-                    'datetime' => $qcRecord['created_at'] ?? ''
-                ];
+            } catch (Exception $e) {
+                $itemMapping = [];
             }
-        }
         
-        // Group production records by date
-        $productionRecordsByDate = [];
+        // ========== Fill Production Detail Data (Column A-D) ==========
+        $detailRowIndex = 2;
         foreach ($productionRecords as $prodRecord) {
             $modelName = $prodRecord['model'] ?? $prodRecord['item'] ?? '';
             $quantity = $prodRecord['qty'] ?? 0;
             $recordDate = $prodRecord['date'] ?? '';
             $recordTime = $prodRecord['time'] ?? '';
             
-            if ($recordDate) {
-                if (!isset($productionRecordsByDate[$recordDate])) {
-                    $productionRecordsByDate[$recordDate] = [];
-                }
-                $productionRecordsByDate[$recordDate][] = [
-                    'model' => $modelName,
-                    'qty' => $quantity,
-                    'time' => $recordTime,
-                    'datetime' => $recordDate . ' ' . $recordTime
-                ];
-            }
-        }
+            $detailSheet->setCellValue("A{$detailRowIndex}", $modelName);
+            $detailSheet->setCellValue("B{$detailRowIndex}", $quantity);
+            $detailSheet->setCellValue("C{$detailRowIndex}", $recordDate);
+            $detailSheet->setCellValue("D{$detailRowIndex}", $recordTime);
+            $detailRowIndex++;
+        }    
         
-        // Get all dates that have either production or QC data
-        $allProcessingDates = array_unique(array_merge(
-            array_keys($productionRecordsByDate), 
-            array_keys($qcRecordsByDate)
-        ));
-        sort($allProcessingDates);
-        
-        // Process each date
-        foreach ($allProcessingDates as $processingDate) {
-            $dailyProductionRecords = $productionRecordsByDate[$processingDate] ?? [];
-            $dailyQCRecords = $qcRecordsByDate[$processingDate] ?? [];
+        // ========== Fill QC Detail Data (Column F-K) ==========
+        $qcDetailRowIndex = 2;
+        foreach ($qualityControlRecords as $qcRecord) {
+            $recordDateTime = !empty($qcRecord['created_at']) ? new DateTime($qcRecord['created_at']) : null;
+            $recordDate = $recordDateTime ? $recordDateTime->format('Y-m-d') : '';
+            $recordTime = $recordDateTime ? $recordDateTime->format('H:i:s') : '';
+            $componentName = $qcRecord['item'] ?? '';
+            $quantity = (int)($qcRecord['qty'] ?? 1);
             
-            // Pair production and QC records for the same date
-            $maxDailyRecords = max(count($dailyProductionRecords), count($dailyQCRecords));
+            // Get model and nickname from mapping
+            $componentWithPrefix = (strpos($componentName, 'AS-') === 0) ? $componentName : 'AS-' . $componentName;
+            $componentWithoutPrefix = str_replace('AS-', '', $componentName);
             
-            for ($recordIndex = 0; $recordIndex < $maxDailyRecords; $recordIndex++) {
-                // Get production data
-                $modelName = isset($dailyProductionRecords[$recordIndex]) ? $dailyProductionRecords[$recordIndex]['model'] : '';
-                $productionQuantity = isset($dailyProductionRecords[$recordIndex]) ? $dailyProductionRecords[$recordIndex]['qty'] : '';
-                $productionTime = isset($dailyProductionRecords[$recordIndex]) ? $dailyProductionRecords[$recordIndex]['time'] : '';
-                
-                // Get QC data
-                $componentName = isset($dailyQCRecords[$recordIndex]) ? $dailyQCRecords[$recordIndex]['component'] : '';
-                $qcQuantity = isset($dailyQCRecords[$recordIndex]) ? $dailyQCRecords[$recordIndex]['qty'] : '';
-                $qcTime = isset($dailyQCRecords[$recordIndex]) ? $dailyQCRecords[$recordIndex]['time'] : '';
-                
-                // Use production data first, fallback to QC data
-                $finalQuantity = $productionQuantity ?: $qcQuantity;
-                $finalTime = $productionTime ?: $qcTime;
-                
-                // Fill detail sheet row
-                $detailSheet->setCellValue("A{$detailRowIndex}", $modelName);
-                $detailSheet->setCellValue("B{$detailRowIndex}", $componentName);
-                $detailSheet->setCellValue("C{$detailRowIndex}", $finalQuantity);
-                $detailSheet->setCellValue("D{$detailRowIndex}", $processingDate);
-                $detailSheet->setCellValue("E{$detailRowIndex}", $finalTime);
-                $detailRowIndex++;
-            }
+            $modelName = $itemMapping[$componentWithPrefix]['model'] ?? 
+                        $itemMapping[$componentWithoutPrefix]['model'] ?? '';
+            $nickName = $itemMapping[$componentWithPrefix]['nickname'] ?? 
+                        $itemMapping[$componentWithoutPrefix]['nickname'] ?? '';
+            
+            $detailSheet->setCellValue("F{$qcDetailRowIndex}", $modelName);
+            $detailSheet->setCellValue("G{$qcDetailRowIndex}", $componentWithPrefix);
+            $detailSheet->setCellValue("H{$qcDetailRowIndex}", $nickName);
+            $detailSheet->setCellValue("I{$qcDetailRowIndex}", $quantity);
+            $detailSheet->setCellValue("J{$qcDetailRowIndex}", $recordDate);
+            $detailSheet->setCellValue("K{$qcDetailRowIndex}", $recordTime);
+            $qcDetailRowIndex++;
         }
 
-        // Create production summary by date and model
+        // ========== Create Production Summary ==========
         $productionSummaryByModel = [];
         foreach ($productionRecords as $prodRecord) {
             $modelName = $prodRecord['model'] ?? $prodRecord['item'] ?? '';
@@ -690,7 +644,7 @@ try {
             }
         }
 
-        // Create QC summary by date and component
+        // ========== Create QC Summary ==========
         $qcSummaryByComponent = [];
         foreach ($qualityControlRecords as $qcRecord) {
             $recordDateTime = !empty($qcRecord['created_at']) ? new DateTime($qcRecord['created_at']) : null;
@@ -698,10 +652,13 @@ try {
             $componentName = $qcRecord['item'] ?? '';
             $quantity = (int)($qcRecord['qty'] ?? 1);
             
-            // Get model and nickname from item mapping (use AS- prefixed key)
-            $prefixedComponentName = 'AS-' . $componentName;
-            $modelName = isset($itemMapping[$prefixedComponentName]) ? $itemMapping[$prefixedComponentName]['model'] : '';
-            $nickName = isset($itemMapping[$prefixedComponentName]) ? $itemMapping[$prefixedComponentName]['nickname'] : '';
+            $componentWithPrefix = (strpos($componentName, 'AS-') === 0) ? $componentName : 'AS-' . $componentName;
+            $componentWithoutPrefix = str_replace('AS-', '', $componentName);
+            
+            $modelName = $itemMapping[$componentWithPrefix]['model'] ?? 
+                        $itemMapping[$componentWithoutPrefix]['model'] ?? '';
+            $nickName = $itemMapping[$componentWithPrefix]['nickname'] ?? 
+                        $itemMapping[$componentWithoutPrefix]['nickname'] ?? '';
             
             if ($componentName && $recordDate) {
                 $summaryKey = $recordDate . '|' . $componentName;
@@ -709,8 +666,7 @@ try {
                     $qcSummaryByComponent[$summaryKey] = [
                         'date' => $recordDate,
                         'model' => $modelName,
-                        // 'component' => $componentName, // ไม่มี AS-
-                        'component' => $prefixedComponentName, // มี AS-
+                        'component' => $componentWithPrefix,
                         'nickname' => $nickName,
                         'total_qty' => 0
                     ];
@@ -718,8 +674,9 @@ try {
                 $qcSummaryByComponent[$summaryKey]['total_qty'] += $quantity;
             }
         }
+       
 
-        // Fill production summary with Man-Hour calculation (columns G, H, I, J)
+        // ========== Fill Production Summary (Column M-R) ==========
         $summaryRowIndex = 2;
         foreach ($productionSummaryByModel as $prodSummary) {
             $totalQuantity = $prodSummary['total_qty'];
@@ -745,75 +702,89 @@ try {
             $proportionalOTHours = $overtimeManHours * $proportionFactor;
             $proportionalTotalHours = $proportionalDayTimeHours + $proportionalOTHours;
             
-            $detailSheet->setCellValue("G{$summaryRowIndex}", $prodSummary['date']);
-            $detailSheet->setCellValue("H{$summaryRowIndex}", $prodSummary['model']);
-            $detailSheet->setCellValue("I{$summaryRowIndex}", $totalQuantity);
-            $detailSheet->setCellValue("J{$summaryRowIndex}", round($proportionalDayTimeHours, 2));
-            $detailSheet->setCellValue("K{$summaryRowIndex}", round($proportionalOTHours, 2));
-            $detailSheet->setCellValue("L{$summaryRowIndex}", round($proportionalTotalHours, 2));
+            $detailSheet->setCellValue("M{$summaryRowIndex}", $prodSummary['date']);
+            $detailSheet->setCellValue("N{$summaryRowIndex}", $prodSummary['model']);
+            $detailSheet->setCellValue("O{$summaryRowIndex}", $totalQuantity);
+            $detailSheet->setCellValue("P{$summaryRowIndex}", round($proportionalDayTimeHours, 2));
+            $detailSheet->setCellValue("Q{$summaryRowIndex}", round($proportionalOTHours, 2));
+            $detailSheet->setCellValue("R{$summaryRowIndex}", round($proportionalTotalHours, 2));
             $summaryRowIndex++;
         }
 
         // Fill QC summary (columns L, M, N, O, P)
         $qcSummaryRowIndex = 2;
         foreach ($qcSummaryByComponent as $qcSummary) {
-            $detailSheet->setCellValue("N{$qcSummaryRowIndex}", $qcSummary['date']);
-            $detailSheet->setCellValue("O{$qcSummaryRowIndex}", $qcSummary['model']);      // โมเดล
-            $detailSheet->setCellValue("P{$qcSummaryRowIndex}", $qcSummary['component']);  // ชิ้นส่วน
-            $detailSheet->setCellValue("Q{$qcSummaryRowIndex}", $qcSummary['nickname']);   // ชื่อ
-            $detailSheet->setCellValue("R{$qcSummaryRowIndex}", $qcSummary['total_qty']);  // สรุปยอด
+            $detailSheet->setCellValue("T{$qcSummaryRowIndex}", $qcSummary['date']);
+            $detailSheet->setCellValue("U{$qcSummaryRowIndex}", $qcSummary['model']);
+            $detailSheet->setCellValue("V{$qcSummaryRowIndex}", $qcSummary['component']);
+            $detailSheet->setCellValue("W{$qcSummaryRowIndex}", $qcSummary['nickname']);
+            $detailSheet->setCellValue("X{$qcSummaryRowIndex}", $qcSummary['total_qty']);
             $qcSummaryRowIndex++;
-        }        
+        }      
 
         // Format detail sheet
-        foreach (['A', 'B', 'C', 'D', 'E', 'G', 'H', 'I', 'J', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'] as $columnLetter) {
+        foreach (['A', 'B', 'C', 'D', 'F', 'G', 'H', 'I', 'J', 'K', 'M', 'N', 'O', 'P', 'Q', 'R', 'T', 'U', 'V', 'W', 'X'] as $columnLetter) {
             $detailSheet->getColumnDimension($columnLetter)->setAutoSize(true);
         }
         // Add header background color
-        $detailSheet->getStyle("A1:E1")
+        $detailSheet->getStyle("A1:D1")
             ->getFill()
             ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()
             ->setRGB($colorheader);
 
-        $detailSheet->getStyle("G1:L1")
+        $detailSheet->getStyle("F1:K1")
             ->getFill()
             ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()
             ->setRGB($colorheader);
 
-        $detailSheet->getStyle("N1:R1")
+        $detailSheet->getStyle("M1:R1")
+            ->getFill()
+            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()
+            ->setRGB($colorheader);
+
+        $detailSheet->getStyle("T1:X1")
             ->getFill()
             ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()
             ->setRGB($colorheader);
             
         // สลับสีแถว (striping rows)
-        for ($i = 2; $i < $detailRowIndex; $i += 2) {
-            $detailSheet->getStyle("A{$i}:E{$i}")
-                ->getFill()
-                ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-                ->getStartColor()
-                ->setRGB($colorrow); 
-        }
+        // for ($i = 2; $i < $detailRowIndex; $i += 2) {
+        //     $detailSheet->getStyle("A{$i}:D{$i}")
+        //         ->getFill()
+        //         ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+        //         ->getStartColor()
+        //         ->setRGB($colorrow); 
+        // }
+        // for ($i = 2; $i < $qcDetailRowIndex; $i += 2) {
+        //     $detailSheet->getStyle("F{$i}:K{$i}")
+        //         ->getFill()
+        //         ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+        //         ->getStartColor()
+        //         ->setRGB($colorrow); 
+        // }
         for ($i = 2; $i < $summaryRowIndex; $i += 2) {
-            $detailSheet->getStyle("G{$i}:L{$i}")
+            $detailSheet->getStyle("M{$i}:R{$i}")
                 ->getFill()
                 ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
                 ->getStartColor()
                 ->setRGB($colorrow); 
         }
         for ($i = 2; $i < $qcSummaryRowIndex; $i += 2) {
-            $detailSheet->getStyle("N{$i}:R{$i}")
+            $detailSheet->getStyle("T{$i}:X{$i}")
                 ->getFill()
                 ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
                 ->getStartColor()
                 ->setRGB($colorrow); 
         }
         // Bold all headers
-        $detailSheet->getStyle('A1:E1')->getFont()->setBold(true)->getColor()->setRGB($textheader);
-        $detailSheet->getStyle('G1:L1')->getFont()->setBold(true)->getColor()->setRGB($textheader);
-        $detailSheet->getStyle('N1:R1')->getFont()->setBold(true)->getColor()->setRGB($textheader);
+        $detailSheet->getStyle('A1:D1')->getFont()->setBold(true)->getColor()->setRGB($textheader);
+        $detailSheet->getStyle('F1:K1')->getFont()->setBold(true)->getColor()->setRGB($textheader);
+        $detailSheet->getStyle('M1:R1')->getFont()->setBold(true)->getColor()->setRGB($textheader);
+        $detailSheet->getStyle('T1:X1')->getFont()->setBold(true)->getColor()->setRGB($textheader);
 
         // Add borders to main data
         // $detailSheet->getStyle("A1:E" . ($detailRowIndex - 1))

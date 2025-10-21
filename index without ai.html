@@ -714,60 +714,6 @@
 
     </div>  <!-- End of Container Fluid -->
 
-    <!-- AI Chat Widget -->
-    <div id="ai-chat-widget" class="ai-chat-widget">
-        <!-- Chat Toggle Button -->
-        <button id="chat-toggle-btn" class="chat-toggle-btn" title="AI Assistant">
-            <i class="fas fa-robot"></i>
-        </button>
-
-        <!-- Chat Container -->
-        <div id="chat-container" class="chat-container" style="display: none;">
-            <!-- Chat Header -->
-            <div class="chat-header">
-                <div class="d-flex align-items-center gap-2">
-                    <i class="fas fa-robot"></i>
-                    <div>
-                        <h6 class="mb-0">AI Assistant</h6>
-                        <small id="llm-status" class="text-white-50">กำลังตรวจสอบ...</small>
-                    </div>
-                </div>
-                <button id="chat-close-btn" class="btn-close btn-close-white"></button>
-            </div>
-
-            <!-- Chat Messages -->
-            <div id="chat-messages" class="chat-messages">
-                <div class="message bot-message">
-                    <div class="message-content">
-                        <i class="fas fa-robot me-2"></i>
-                        สวัสดีครับ! ผมคือ AI Assistant ที่พร้อมช่วยตอบคำถามเกี่ยวกับข้อมูลการผลิตของคุณ
-                        <br><br>
-                        <strong>ตัวอย่างคำถาม:</strong>
-                        <ul class="mb-0 mt-2">
-                            <li>สรุปจำนวนงานเย็บวันนี้</li>
-                            <li>แสดงข้อมูล NG ที่พบบ่อยที่สุด</li>
-                            <li>เปรียบเทียบประสิทธิภาพแต่ละแผนก</li>
-                            <li>มีตารางอะไรบ้างในระบบ?</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Chat Input -->
-            <div class="chat-input-container">
-                <textarea 
-                    id="chat-input" 
-                    class="chat-input" 
-                    placeholder="พิมพ์คำถามของคุณ..."
-                    rows="1"
-                ></textarea>
-                <button id="chat-send-btn" class="chat-send-btn" title="ส่งคำถาม">
-                    <i class="fas fa-paper-plane"></i>
-                </button>
-            </div>
-        </div>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="script/script.js"></script>
     

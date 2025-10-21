@@ -1,0 +1,26 @@
+# FastAPI และ Web Framework
+fastapi==0.118.0
+uvicorn==0.24.0
+
+# Database
+sqlalchemy==2.0.43
+mysql-connector-python==9.0.0
+
+# LLM และ AI
+langchain==0.3.27
+langchain-community==0.3.27
+
+# Configuration
+python-dotenv==1.0.1
+
+# Data Processing
+pydantic==2.11.9
+typing-extensions==4.15.0
+
+# Optional: Langchain Ollama (recommended)
+# langchain-ollama
+
+# Development (optional)
+# pytest==8.3.4
+# black==24.10.0
+# flake8==7.1.1

@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบถาม-ตอบฐานข้อมูล Automotive</title>
+    
+    <!-- Chart.js for creating charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .info-section {
+            background: #e8f4f8;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3498db;
+        }
+        .chat-form {
+            margin: 20px 0;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #34495e;
+        }
+        textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            resize: vertical;
+            min-height: 100px;
+            box-sizing: border-box;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        .button-group {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+        .btn-secondary {
+            background-color: #95a5a6;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background-color: #7f8c8d;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #28a745;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left-color: #dc3545;
+        }
+        .examples {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border-left: 4px solid #ffc107;
+        }
+        .example-item {
+            margin: 8px 0;
+            cursor: pointer;
+            color: #856404;
+            text-decoration: underline;
+            padding: 5px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        .example-item:hover {
+            background-color: #ffeaa7;
+            color: #533f03;
+        }
+        
+        /* Chart Container Styles */
+        .chart-container {
+            margin-top: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+            margin-top: 15px;
+        }
+        .chart-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .chart-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .chart-btn {
+            padding: 8px 15px;
+            border: 2px solid #3498db;
+            background: white;
+            color: #3498db;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .chart-btn:hover {
+            background: #3498db;
+            color: white;
+        }
+        .chart-btn.active {
+            background: #3498db;
+            color: white;
+        }
+        
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .container { padding: 20px; }
+            .button-group { flex-direction: column; }
+            button { width: 100%; }
+            .chart-wrapper { height: 300px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏭 ระบบถาม-ตอบฐานข้อมูล Automotive</h1>
+
+        <div class="chat-form">
+            <label for="question">💬 คำถามของคุณ:</label>
+            <textarea 
+                id="question" 
+                placeholder="พิมพ์คำถามที่นี่... (กด Ctrl+Enter เพื่อส่ง)"
+            ></textarea>
+            
+            <div class="button-group">
+                <button class="btn-primary" onclick="askQuestion()">ส่งคำถาม</button>
+                <button class="btn-secondary" onclick="clearAll()">ล้างข้อมูล</button>
+            </div>
+        </div>
+
+        <div class="examples">
+            <h4>💡 ตัวอย่างคำถามที่แสดงกราฟ (คลิกเพื่อใช้):</h4>
+            
+            <div style="margin: 15px 0;"><strong>📊 คำถามที่แสดงกราฟ:</strong></div>
+            <div class="example-item" onclick="setQuestion('แสดงกราฟของเสียในเดือนนี้แยกตาม process')">• แสดงกราฟของเสียในเดือนนี้แยกตาม process</div>
+            <div class="example-item" onclick="setQuestion('เปรียบเทียบจำนวนของเสียระหว่าง F/C, F/B, R/C, R/B')">• เปรียบเทียบจำนวนของเสียระหว่างแผนก</div>
+            <div class="example-item" onclick="setQuestion('สรุป 5 อันดับปัญหาที่เกิดบ่อยที่สุดในเดือนนี้')">• สรุป 5 อันดับปัญหาที่เกิดบ่อยที่สุด</div>
+            <div class="example-item" onclick="setQuestion('แสดงกราฟแนวโน้มของเสียย้อนหลัง 7 วัน')">• แสดงกราฟแนวโน้มของเสียย้อนหลัง 7 วัน</div>
+            
+            <div style="margin: 15px 0;"><strong>🔍 คำถามปกติ:</strong></div>
+            <div class="example-item" onclick="setQuestion('สรุปรายงานจำนวนงาน NG จาก qc_ng ในเดือนนี้')">• สรุปรายงานจำนวนงาน NG ในเดือนนี้</div>
+            <div class="example-item" onclick="setQuestion('หาปัญหาที่เกิดบ่อยที่สุดในเดือนนี้')">• หาปัญหาที่เกิดบ่อยที่สุด</div>
+        </div>
+
+        <!-- Answer Section -->
+        <div id="result" style="display: none;"></div>
+
+        <!-- Chart Section -->
+        <div id="chart-section" style="display: none;" class="chart-container">
+            <div class="chart-title" id="chart-title">📊 กราฟแสดงข้อมูล</div>
+            <div class="chart-controls">
+                <button class="chart-btn active" data-type="bar" onclick="changeChartType('bar')">📊 แท่ง</button>
+                <button class="chart-btn" data-type="line" onclick="changeChartType('line')">📈 เส้น</button>
+                <button class="chart-btn" data-type="pie" onclick="changeChartType('pie')">🥧 วงกลม</button>
+                <button class="chart-btn" data-type="doughnut" onclick="changeChartType('doughnut')">🍩 โดนัท</button>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="myChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentChart = null;
+        let currentChartData = null;
+        let currentChartType = 'bar';
+
+        function setQuestion(text) {
+            document.getElementById('question').value = text;
+        }
+
+        function clearAll() {
+            document.getElementById('question').value = '';
+            document.getElementById('result').style.display = 'none';
+            document.getElementById('chart-section').style.display = 'none';
+            if (currentChart) {
+                currentChart.destroy();
+                currentChart = null;
+            }
+        }
+
+        async function askQuestion() {
+            const question = document.getElementById('question').value.trim();
+            const resultDiv = document.getElementById('result');
+            const chartSection = document.getElementById('chart-section');
+
+            if (!question) {
+                alert('กรุณาใส่คำถาม');
+                return;
+            }
+
+            // ซ่อนกราฟเดิม
+            chartSection.style.display = 'none';
+            if (currentChart) {
+                currentChart.destroy();
+                currentChart = null;
+            }
+
+            // แสดง loading
+            resultDiv.innerHTML = '<div class="loading">🤔 กำลังประมวลผล...</div>';
+            resultDiv.className = 'result';
+            resultDiv.style.display = 'block';
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ question: question })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // แสดงคำตอบ
+                    resultDiv.innerHTML = `
+                        <h4>✅ คำตอบ:</h4>
+                        <pre style="white-space: pre-wrap; font-family: inherit; background: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 3px solid #28a745;">${data.answer}</pre>
+                    `;
+
+                    // ถ้ามีข้อมูลกราฟ
+                    if (data.chart && data.chart.data && data.chart.data.length > 0) {
+                        currentChartData = data.chart;
+                        displayChart(data.chart);
+                    }
+                } else {
+                    throw new Error(data.detail || 'เกิดข้อผิดพลาด');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <h4>❌ เกิดข้อผิดพลาด:</h4>
+                    <p>${error.message}</p>
+                `;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        function displayChart(chartConfig) {
+            const chartSection = document.getElementById('chart-section');
+            const chartTitle = document.getElementById('chart-title');
+            const canvas = document.getElementById('myChart');
+
+            // แสดง section
+            chartSection.style.display = 'block';
+            chartTitle.textContent = chartConfig.title || '📊 กราฟแสดงข้อมูล';
+
+            // ทำลายกราฟเก่า
+            if (currentChart) {
+                currentChart.destroy();
+            }
+
+            // สร้างกราฟใหม่
+            createChart(chartConfig, currentChartType);
+        }
+
+        function createChart(config, type = 'bar') {
+            const ctx = document.getElementById('myChart').getContext('2d');
+            
+            // สร้างสีสำหรับแต่ละข้อมูล
+            const colors = [
+                'rgba(255, 99, 132, 0.7)',
+                'rgba(54, 162, 235, 0.7)',
+                'rgba(255, 206, 86, 0.7)',
+                'rgba(75, 192, 192, 0.7)',
+                'rgba(153, 102, 255, 0.7)',
+                'rgba(255, 159, 64, 0.7)',
+                'rgba(199, 199, 199, 0.7)',
+                'rgba(83, 102, 255, 0.7)',
+                'rgba(255, 99, 255, 0.7)',
+                'rgba(99, 255, 132, 0.7)',
+            ];
+
+            const borderColors = colors.map(c => c.replace('0.7', '1'));
+
+            // เตรียมข้อมูล
+            const labels = config.data.map(d => d.label);
+            const values = config.data.map(d => d.value);
+
+            // ตั้งค่ากราฟ
+            const chartData = {
+                labels: labels,
+                datasets: [{
+                    label: config.y_label || 'ค่า',
+                    data: values,
+                    backgroundColor: type === 'pie' || type === 'doughnut' ? colors : colors[0],
+                    borderColor: type === 'pie' || type === 'doughnut' ? borderColors : borderColors[0],
+                    borderWidth: 2
+                }]
+            };
+
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: type === 'pie' || type === 'doughnut',
+                        position: 'bottom'
+                    },
+                    title: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                label += context.parsed.y || context.parsed;
+                                
+                                // แสดงเปอร์เซ็นต์สำหรับ pie/doughnut
+                                if (type === 'pie' || type === 'doughnut') {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                    label += ` (${percentage}%)`;
+                                }
+                                
+                                return label;
+                            }
+                        }
+                    }
+                }
+            };
+
+            // เพิ่ม scales สำหรับกราฟแท่งและเส้น
+            if (type !== 'pie' && type !== 'doughnut') {
+                chartOptions.scales = {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: !!config.y_label,
+                            text: config.y_label || ''
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: !!config.x_label,
+                            text: config.x_label || ''
+                        }
+                    }
+                };
+            }
+
+            // สร้างกราฟ
+            currentChart = new Chart(ctx, {
+                type: type,
+                data: chartData,
+                options: chartOptions
+            });
+        }
+
+        function changeChartType(type) {
+            if (!currentChartData) return;
+
+            currentChartType = type;
+
+            // อัปเดต active button
+            document.querySelectorAll('.chart-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-type="${type}"]`).classList.add('active');
+
+            // สร้างกราฟใหม่
+            if (currentChart) {
+                currentChart.destroy();
+            }
+            createChart(currentChartData, type);
+        }
+
+        // Enter key support
+        document.getElementById('question').addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') {
+                askQuestion();
+            }
+        });
+    </script>
+</body>
+</html>

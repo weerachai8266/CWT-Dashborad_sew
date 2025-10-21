@@ -1,0 +1,46 @@
+[Unit]
+Description=LLM Chat Service for CWT Production Dashboard
+Documentation=https://github.com/weerachai8266/CWT-monitor_show
+After=network.target mysql.service
+Wants=network-online.target
+
+[Service]
+Type=forking
+User=weerachai
+Group=weerachai
+WorkingDirectory=/var/www/html/sewing
+
+# Environment
+Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="PYTHONPATH=/var/www/html/sewing"
+
+# Start command
+ExecStart=/var/www/html/sewing/start_llm.sh start
+
+# Stop command
+ExecStop=/var/www/html/sewing/start_llm.sh stop
+
+# Restart policy
+Restart=on-failure
+RestartSec=10
+StartLimitInterval=200
+StartLimitBurst=5
+
+# PID file
+PIDFile=/var/www/html/sewing/llm/llm.pid
+
+# Logging
+StandardOutput=append:/var/www/html/sewing/llm/llm.log
+StandardError=append:/var/www/html/sewing/llm/llm.log
+
+# Security settings
+PrivateTmp=true
+NoNewPrivileges=true
+
+# Resource limits
+LimitNOFILE=65536
+TimeoutStartSec=300
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
