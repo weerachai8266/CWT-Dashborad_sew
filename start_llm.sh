@@ -98,7 +98,7 @@ start_llm() {
     
     # ตรวจสอบว่า Ollama กำลังทำงานหรือไม่ (ถ้าใช้ Ollama)
     if grep -q "LLM_PROVIDER.*ollama" config.py 2>/dev/null || [ ! -f ".env" ]; then
-        OLLAMA_HOST=$(grep -oP 'OLLAMA_HOST=\K.*' .env 2>/dev/null || echo "http://192.168.0.9:11434")
+        OLLAMA_HOST=$(grep -oP 'OLLAMA_HOST=\K.*' .env 2>/dev/null || echo "http://192.168.0.14:11434")
         print_info "ตรวจสอบ Ollama Server: $OLLAMA_HOST"
         
         if ! curl -s "$OLLAMA_HOST/api/tags" > /dev/null 2>&1; then

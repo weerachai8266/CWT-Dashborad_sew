@@ -80,7 +80,7 @@ function fetchQualityControlItems(PDO $pdo, string $productionLine, string $star
  * @param string $workShift Work shift (เช้า, บ่าย, OT)
  * @return float Total man-hours
  */
-function calculateManHours(PDO $dbConnection, string $productionLine, string $startDate, string $endDate, string $workShift): float {
+function calculateManHours(PDO $dbConnection, string $productionLine, string $startDate, string $endDate, string $workShift): array {
     // Map production lines to database column names
     $manpowerColumns = [
         'fc' => 'fc_act',
@@ -92,7 +92,7 @@ function calculateManHours(PDO $dbConnection, string $productionLine, string $st
     ];
     
     if (!isset($manpowerColumns[$productionLine])) {
-        return 0.0;
+        return ['man_power' => 0.0, 'working_hours' => 0.0, 'man_hours' => 0.0];
     }
     
     $manCountColumn = $manpowerColumns[$productionLine];
@@ -112,17 +112,20 @@ function calculateManHours(PDO $dbConnection, string $productionLine, string $st
             ':end_date' => $endDate
         ]);
         
-        $totalManHours = 0.0;
+        $manCount = 0;
+        $workingHours = 0.0;
+        $man_hours = 0.0;
         while ($manHourRecord = $statement->fetch(PDO::FETCH_ASSOC)) {
             $manCount = (int)($manHourRecord['man_count'] ?? 0);
             $workingHours = (float)($manHourRecord['thour'] ?? 1.0);
-            $totalManHours += $manCount * $workingHours;
+            $man_hours += $manCount * $workingHours;
         }
         
-        return $totalManHours;
-        
+        // return $totalManHours;
+        return ['man_power' => $manCount, 'working_hours' => $workingHours, 'man_hours' => $man_hours];
+
     } catch(Exception $e) {
-        return 0.0;
+        return ['man_power' => 0, 'working_hours' => 0.0, 'man_hours' => 0.0];
     }
 }
 /**
@@ -151,120 +154,6 @@ function getShiftFromTime(string $time): string {
         return 'บ่าย';
     } else {
         return 'OT';
-    }
-}
-function calculateCombinedRegularManHours(PDO $dbConnection, string $productionLine, string $startDate, string $endDate): float {
-    $morningHours = calculateManHours($dbConnection, $productionLine, $startDate, $endDate, 'เช้า');
-    $afternoonHours = calculateManHours($dbConnection, $productionLine, $startDate, $endDate, 'บ่าย');
-    return $morningHours + $afternoonHours;
-}
-/**
- * Calculate daily man-hours for specific line, date, and shift
- * @param PDO $dbConnection Database connection
- * @param string $productionLine Production line code
- * @param string $targetDate Target date (Y-m-d)
- * @param string $workShift Work shift
- * @return float Daily man-hours
- */
-function calculateDailyManHours(PDO $dbConnection, string $productionLine, string $targetDate, string $workShift): float {
-    $manpowerColumns = [
-        'fc' => 'fc_act',
-        'fb' => 'fb_act', 
-        'rc' => 'rc_act',
-        'rb' => 'rb_act',
-        'third' => '3rd_act',
-        'sub' => 'sub_act'
-    ];
-    
-    if (!isset($manpowerColumns[$productionLine])) {
-        return 0.0;
-    }
-    
-    $manCountColumn = $manpowerColumns[$productionLine];
-    
-    try {
-        $sql = "SELECT SUM(thour * {$manCountColumn}) as total_hours
-                FROM sewing_man_act 
-                WHERE shift = :work_shift 
-                AND DATE(created_at) = :target_date 
-                AND {$manCountColumn} > 0";
-                
-        $statement = $dbConnection->prepare($sql);
-        $statement->execute([
-            ':work_shift' => $workShift,
-            ':target_date' => $targetDate
-        ]);
-        
-        $result = $statement->fetch(PDO::FETCH_ASSOC);
-        return (float)($result['total_hours'] ?? 0.0);
-        
-    } catch(Exception $e) {
-        return 0.0;
-    }
-}
-function calculateCombinedDailyRegularManHours(PDO $dbConnection, string $productionLine, string $targetDate): float {
-    $morningHours = calculateDailyManHours($dbConnection, $productionLine, $targetDate, 'เช้า');
-    $afternoonHours = calculateDailyManHours($dbConnection, $productionLine, $targetDate, 'บ่าย');
-    return $morningHours + $afternoonHours;
-}
-/**
- * Calculate man-hours for specific item at specific time
- * @param PDO $dbConnection Database connection
- * @param string $productionLine Production line code
- * @param string $targetDate Target date (Y-m-d)
- * @param string $targetTime Target time (H:i:s)
- * @return float Man-hours for that specific time
- */
-function calculateItemManHours(PDO $dbConnection, string $productionLine, string $targetDate, string $targetTime): float {
-    $manpowerColumns = [
-        'fc' => 'fc_act',
-        'fb' => 'fb_act', 
-        'rc' => 'rc_act',
-        'rb' => 'rb_act',
-        'third' => '3rd_act',
-        'sub' => 'sub_act'
-    ];
-    
-    if (!isset($manpowerColumns[$productionLine])) {
-        return 0.0;
-    }
-    
-    $manCountColumn = $manpowerColumns[$productionLine];
-    
-    // Get shift from time
-    $workShift = getShiftFromTime($targetTime);
-    
-    try {
-        // Get man-hour data for the specific date and shift
-        $sql = "SELECT thour, {$manCountColumn} as man_count
-                FROM sewing_man_act 
-                WHERE shift = :work_shift 
-                AND DATE(created_at) = :target_date 
-                AND {$manCountColumn} > 0
-                ORDER BY created_at, thour";
-                
-        $statement = $dbConnection->prepare($sql);
-        $statement->execute([
-            ':work_shift' => $workShift,
-            ':target_date' => $targetDate
-        ]);
-        
-        $totalManHours = 0.0;
-        $recordCount = 0;
-        
-        while ($manHourRecord = $statement->fetch(PDO::FETCH_ASSOC)) {
-            $manCount = (int)($manHourRecord['man_count'] ?? 0);
-            $workingHours = (float)($manHourRecord['thour'] ?? 1.0);
-            $totalManHours += $manCount * $workingHours;
-            $recordCount++;
-        }
-        
-        // If we have multiple records for the same shift, average them
-        // return $recordCount > 0 ? $totalManHours / $recordCount : 0.0;
-        return $totalManHours;
-        
-    } catch(Exception $e) {
-        return 0.0;
     }
 }
 
@@ -333,9 +222,12 @@ try {
     $summarySheet->setCellValue('B4', 'จำนวนชิ้นผลิต');
     $summarySheet->setCellValue('C4', 'จำนวนชิ้นตรวจ');
     $summarySheet->setCellValue('D4', 'โมเดลทั้งหมด');
-    $summarySheet->setCellValue('E4', 'DayTime M-H');
-    $summarySheet->setCellValue('F4', 'OT M-H');
-    $summarySheet->setCellValue('G4', 'Total M-H');
+    $summarySheet->setCellValue('E4', 'DayTime Man-Hours');
+    $summarySheet->setCellValue('F4', 'OT Man-Hours');
+    // $summarySheet->setCellValue('G4', 'DayTime Man-Power');
+    // $summarySheet->setCellValue('H4', 'OT Man-Power');
+    $summarySheet->setCellValue('I4', 'Total Man-Hours');
+    // $summarySheet->setCellValue('J4', 'Total OT Man-Power');
 
     // Fill summary data
     $summaryRowIndex = 5;
@@ -357,26 +249,29 @@ try {
         $overtimeManHours = calculateManHours($conn, $lineCode, $reportStartDate, $reportEndDate, 'OT');
 
         // Fill row data
-        $summarySheet->setCellValue('A' . $summaryRowIndex, $productionLineNames[$lineCode]);
-        $summarySheet->setCellValue('B' . $summaryRowIndex, $lineData['total_qty']);
-        $summarySheet->setCellValue('C' . $summaryRowIndex, $qualityControlTotal);
-        $summarySheet->setCellValue('D' . $summaryRowIndex, $lineData['unique_items']);
-        $summarySheet->setCellValue('E' . $summaryRowIndex, $morningManHours + $afternoonManHours);
-        $summarySheet->setCellValue('F' . $summaryRowIndex, $overtimeManHours);
-        $summarySheet->setCellValue('G' . $summaryRowIndex, "=SUM(E{$summaryRowIndex}:F{$summaryRowIndex})");
+        $summarySheet->setCellValue('A' . $summaryRowIndex, $productionLineNames[$lineCode]);                                           // col A Line Name
+        $summarySheet->setCellValue('B' . $summaryRowIndex, $lineData['total_qty']);                                                    // col B Total Qty
+        $summarySheet->setCellValue('C' . $summaryRowIndex, $qualityControlTotal);                                                      // col C QC Total
+        $summarySheet->setCellValue('D' . $summaryRowIndex, $lineData['unique_items']);                                                 // col D Models Total
+        $summarySheet->setCellValue('E' . $summaryRowIndex, $morningManHours['man_hours'] + $afternoonManHours['man_hours']);   // col E DayTime working hrs
+        $summarySheet->setCellValue('F' . $summaryRowIndex, $overtimeManHours['man_hours']);                                        // col F OT working hrs
+        // $summarySheet->setCellValue('G' . $summaryRowIndex, round(($morningManHours['man_power'] + $afternoonManHours['man_power']) / 2));     // col G DayTime
+        // $summarySheet->setCellValue('H' . $summaryRowIndex, $overtimeManHours['man_power']);                                            // col H OT Man-Power
+        $summarySheet->setCellValue('I' . $summaryRowIndex, "=SUM(E{$summaryRowIndex}:F{$summaryRowIndex})");                           // col I Total working hrs
+        // $summarySheet->setCellValue('J' . $summaryRowIndex, "=SUM(G{$summaryRowIndex}:H{$summaryRowIndex})");                           // col J Total Man-Power
 
         $summaryRowIndex++;
 
     }
         // Auto-size columns
-        foreach (['A', 'B', 'C', 'D', 'E', 'F', 'G'] as $columnLetter) {
+        foreach (['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] as $columnLetter) {
             $summarySheet->getColumnDimension($columnLetter)->setAutoSize(true);
         }
         // Bold headers
-        $summarySheet->getStyle('A4:G4')->getFont()->setBold(true)->getColor()->setRGB($textheader);
+        $summarySheet->getStyle('A4:J4')->getFont()->setBold(true)->getColor()->setRGB($textheader);
 
         // Add header background color
-        $summarySheet->getStyle("A4:G4") // แถวหัวตาราง
+        $summarySheet->getStyle("A4:J4") // แถวหัวตาราง
             ->getFill()
             ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()
@@ -401,7 +296,7 @@ try {
 
         // สลับสีแถว (striping rows)
         for ($i = 5; $i < $summaryRowIndex; $i += 2) {
-            $summarySheet->getStyle("A{$i}:G{$i}")
+            $summarySheet->getStyle("A{$i}:J{$i}")
                 ->getFill()
                 ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
                 ->getStartColor()
@@ -421,9 +316,10 @@ try {
     // Column headers
     $manHourSheet->setCellValue('A4', 'วันที่');
     $manHourSheet->setCellValue('B4', 'ไลน์');
-    $manHourSheet->setCellValue('C4', 'DayTime');
-    $manHourSheet->setCellValue('D4', 'OT');
-    $manHourSheet->setCellValue('E4', 'รวม');
+    $manHourSheet->setCellValue('C4', 'DayTime (ชั่วโมง)');
+    $manHourSheet->setCellValue('D4', 'OT (ชั่วโมง)');
+    $manHourSheet->setCellValue('E4', 'DayTime (คน)');
+    $manHourSheet->setCellValue('F4', 'OT (คน)');
 
     // Generate date range
     $dateRange = [];
@@ -438,9 +334,9 @@ try {
     foreach ($dateRange as $targetDate) {
         foreach ($productionLineNames as $lineCode => $lineName) {
             // Calculate man-hours for each shift
-            $dailyMorningHours = calculateDailyManHours($conn, $lineCode, $targetDate, 'เช้า');
-            $dailyAfternoonHours = calculateDailyManHours($conn, $lineCode, $targetDate, 'บ่าย');
-            $dailyOvertimeHours = calculateDailyManHours($conn, $lineCode, $targetDate, 'OT');
+            $dailyMorningHours = calculateManHours($conn, $lineCode, $targetDate, $targetDate, 'เช้า');
+            $dailyAfternoonHours = calculateManHours($conn, $lineCode, $targetDate, $targetDate, 'บ่าย');
+            $dailyOvertimeHours = calculateManHours($conn, $lineCode, $targetDate, $targetDate, 'OT');
             $dailyTotalHours = $dailyMorningHours + $dailyAfternoonHours + $dailyOvertimeHours;
 
             // Skip rows with no data
@@ -451,18 +347,19 @@ try {
             // Fill man-hour data
             $manHourSheet->setCellValue("A{$manHourRowIndex}", $targetDate);
             $manHourSheet->setCellValue("B{$manHourRowIndex}", $lineName);
-            $manHourSheet->setCellValue("C{$manHourRowIndex}", $dailyMorningHours + $dailyAfternoonHours);
-            $manHourSheet->setCellValue("D{$manHourRowIndex}", $dailyOvertimeHours);
-            $manHourSheet->setCellValue("E{$manHourRowIndex}", $dailyTotalHours);
+            $manHourSheet->setCellValue("C{$manHourRowIndex}", $dailyMorningHours['working_hours'] + $dailyAfternoonHours['working_hours']);
+            $manHourSheet->setCellValue("D{$manHourRowIndex}", $dailyOvertimeHours['working_hours']);
+            $manHourSheet->setCellValue("E{$manHourRowIndex}", round(($dailyMorningHours['man_power'] + $dailyAfternoonHours['man_power']) / 2));
+            $manHourSheet->setCellValue("F{$manHourRowIndex}", $dailyOvertimeHours['man_power']);
             $manHourRowIndex++;
         }
     }
 
     // Format header
-    $manHourSheet->getStyle("A4:E4")->getFont()->setBold(true)->getColor()->setRGB($textheader);
+    $manHourSheet->getStyle("A4:F4")->getFont()->setBold(true)->getColor()->setRGB($textheader);
 
     // Add header background color
-    $manHourSheet->getStyle("A4:E4") // แถวหัวตาราง
+    $manHourSheet->getStyle("A4:F4") // แถวหัวตาราง
         ->getFill()
         ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
         ->getStartColor()
@@ -477,29 +374,14 @@ try {
     // }
 
     // Auto-size columns
-    foreach (['A', 'B', 'C', 'D', 'E'] as $columnLetter) {
+    foreach (['A', 'B', 'C', 'D', 'E', 'F'] as $columnLetter) {
         $manHourSheet->getColumnDimension($columnLetter)->setAutoSize(true);
     }
 
-    // Add totals row if data exists
-    if ($manHourRowIndex > 5) {
-        $totalsRowIndex = $manHourRowIndex;
-        $manHourSheet->setCellValue("A{$totalsRowIndex}", 'รวมทั้งหมด');
-        $manHourSheet->setCellValue("B{$totalsRowIndex}", '');
-        $manHourSheet->setCellValue("C{$totalsRowIndex}", "=SUM(C5:C" . ($totalsRowIndex - 1) . ")");
-        $manHourSheet->setCellValue("D{$totalsRowIndex}", "=SUM(D5:D" . ($totalsRowIndex - 1) . ")");
-        $manHourSheet->setCellValue("E{$totalsRowIndex}", "=SUM(E5:E" . ($totalsRowIndex - 1) . ")");
-        
-        // Format totals row
-        $manHourSheet->getStyle("A{$totalsRowIndex}:E{$totalsRowIndex}")->getFont()->setBold(true);
-        // $manHourSheet->getStyle("A{$totalsRowIndex}:E{$totalsRowIndex}")
-        //     ->getBorders()
-        //     ->getAllBorders()
-        //     ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THICK);
-    }
+
     // สลับสีแถว (striping rows)
     for ($i = 5; $i < $manHourRowIndex; $i += 2) {
-        $manHourSheet->getStyle("A{$i}:E{$i}")
+        $manHourSheet->getStyle("A{$i}:F{$i}")
             ->getFill()
             ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()
@@ -535,17 +417,31 @@ try {
         $detailSheet->setCellValue('M1', 'วันที่');
         $detailSheet->setCellValue('N1', 'โมเดล');
         $detailSheet->setCellValue('O1', 'สรุปยอด');
-        $detailSheet->setCellValue('P1', 'DayTime M-H'); // เปลี่ยนชื่อคอลัมน์
-        $detailSheet->setCellValue('Q1', 'OT M-H');      // เพิ่มคอลัมน์ใหม่
-        $detailSheet->setCellValue('R1', 'รวม M-H');
 
         // Summary headers for QC
-        $detailSheet->setCellValue('T1', 'วันที่');
-        $detailSheet->setCellValue('U1', 'โมเดล');
-        $detailSheet->setCellValue('V1', 'ชิ้นส่วน');
-        $detailSheet->setCellValue('W1', 'ชื่อ');
-        $detailSheet->setCellValue('X1', 'สรุปยอด');        
-                
+        $detailSheet->setCellValue('Q1', 'วันที่');
+        $detailSheet->setCellValue('R1', 'โมเดล');
+        $detailSheet->setCellValue('S1', 'ชิ้นส่วน');
+        $detailSheet->setCellValue('T1', 'ชื่อ');
+        $detailSheet->setCellValue('U1', 'สรุปยอด');
+        $detailSheet->setCellValue('V1', 'DayTime (วินาทีรวม)');
+        $detailSheet->setCellValue('W1', 'Overtime (วินาทีรวม)');
+
+        // ========== Raw Fill Production Detail Data (Column A-D) ==========
+        $detailRowIndex = 2;
+        foreach ($productionRecords as $prodRecord) {
+            $modelName = $prodRecord['model'] ?? $prodRecord['item'] ?? '';
+            $quantity = $prodRecord['qty'] ?? 0;
+            $recordDate = $prodRecord['date'] ?? '';
+            $recordTime = $prodRecord['time'] ?? '';
+            
+            $detailSheet->setCellValue("A{$detailRowIndex}", $modelName);
+            $detailSheet->setCellValue("B{$detailRowIndex}", $quantity);
+            $detailSheet->setCellValue("C{$detailRowIndex}", $recordDate);
+            $detailSheet->setCellValue("D{$detailRowIndex}", $recordTime);
+            $detailRowIndex++;
+        }           
+        
         // Get QC data for this line
         $qualityControlRecords = fetchQualityControlItems($conn, $lineCode, $reportStartDate, $reportEndDate);
         
@@ -581,23 +477,7 @@ try {
             } catch (Exception $e) {
                 $itemMapping = [];
             }
-        
-        // ========== Fill Production Detail Data (Column A-D) ==========
-        $detailRowIndex = 2;
-        foreach ($productionRecords as $prodRecord) {
-            $modelName = $prodRecord['model'] ?? $prodRecord['item'] ?? '';
-            $quantity = $prodRecord['qty'] ?? 0;
-            $recordDate = $prodRecord['date'] ?? '';
-            $recordTime = $prodRecord['time'] ?? '';
-            
-            $detailSheet->setCellValue("A{$detailRowIndex}", $modelName);
-            $detailSheet->setCellValue("B{$detailRowIndex}", $quantity);
-            $detailSheet->setCellValue("C{$detailRowIndex}", $recordDate);
-            $detailSheet->setCellValue("D{$detailRowIndex}", $recordTime);
-            $detailRowIndex++;
-        }    
-        
-        // ========== Fill QC Detail Data (Column F-K) ==========
+        // ========== Raw Fill QC Detail Data (Column F-K) ==========
         $qcDetailRowIndex = 2;
         foreach ($qualityControlRecords as $qcRecord) {
             $recordDateTime = !empty($qcRecord['created_at']) ? new DateTime($qcRecord['created_at']) : null;
@@ -644,11 +524,24 @@ try {
             }
         }
 
+        // ========== Fill Production Summary (Column M-O) ==========
+        $summaryRowIndex = 2;
+        foreach ($productionSummaryByModel as $prodSummary) {
+            $totalQuantity = $prodSummary['total_qty'];
+            $modelDate = $prodSummary['date'];            
+            
+            $detailSheet->setCellValue("M{$summaryRowIndex}", $prodSummary['date']);
+            $detailSheet->setCellValue("N{$summaryRowIndex}", $prodSummary['model']);
+            $detailSheet->setCellValue("O{$summaryRowIndex}", $totalQuantity);
+            $summaryRowIndex++;
+        }
+        
         // ========== Create QC Summary ==========
         $qcSummaryByComponent = [];
         foreach ($qualityControlRecords as $qcRecord) {
             $recordDateTime = !empty($qcRecord['created_at']) ? new DateTime($qcRecord['created_at']) : null;
             $recordDate = $recordDateTime ? $recordDateTime->format('Y-m-d') : '';
+            $recordTime = $recordDateTime ? $recordDateTime->format('H:i:s') : '';
             $componentName = $qcRecord['item'] ?? '';
             $quantity = (int)($qcRecord['qty'] ?? 1);
             
@@ -660,6 +553,10 @@ try {
             $nickName = $itemMapping[$componentWithPrefix]['nickname'] ?? 
                         $itemMapping[$componentWithoutPrefix]['nickname'] ?? '';
             
+            // แยก DayTime (08:00-17:00) และ OT (นอกเวลา)
+            $hour = $recordDateTime ? (int)$recordDateTime->format('H') : 0;
+            $isDayTime = ($hour >= 8 && $hour < 17);
+            
             if ($componentName && $recordDate) {
                 $summaryKey = $recordDate . '|' . $componentName;
                 if (!isset($qcSummaryByComponent[$summaryKey])) {
@@ -668,62 +565,103 @@ try {
                         'model' => $modelName,
                         'component' => $componentWithPrefix,
                         'nickname' => $nickName,
-                        'total_qty' => 0
+                        'total_qty' => 0,
+                        'qty_daytime' => 0,
+                        'qty_ot' => 0,
+                        'records_daytime' => [],
+                        'records_ot' => []
                     ];
                 }
                 $qcSummaryByComponent[$summaryKey]['total_qty'] += $quantity;
+                
+                if ($isDayTime) {
+                    $qcSummaryByComponent[$summaryKey]['qty_daytime'] += $quantity;
+                    if ($recordDateTime) {
+                        $qcSummaryByComponent[$summaryKey]['records_daytime'][] = $recordDateTime;
+                    }
+                } else {
+                    $qcSummaryByComponent[$summaryKey]['qty_ot'] += $quantity;
+                    if ($recordDateTime) {
+                        $qcSummaryByComponent[$summaryKey]['records_ot'][] = $recordDateTime;
+                    }
+                }
             }
         }
        
-
-        // ========== Fill Production Summary (Column M-R) ==========
-        $summaryRowIndex = 2;
-        foreach ($productionSummaryByModel as $prodSummary) {
-            $totalQuantity = $prodSummary['total_qty'];
-            $modelDate = $prodSummary['date'];
+        // Fill QC summary (columns Q-W)
+        $qcSummaryRowIndex = 2;
+        foreach ($qcSummaryByComponent as $qcSummary) {
+            $modelDate = $qcSummary['date'];
             
-            // แยกคำนวณ man-hours สำหรับ DayTime และ OT
-            $dayTimeManHours = calculateDailyManHours($conn, $lineCode, $modelDate, 'เช้า') +
-                            calculateDailyManHours($conn, $lineCode, $modelDate, 'บ่าย');
-            $overtimeManHours = calculateDailyManHours($conn, $lineCode, $modelDate, 'OT');
-            $totalManHours = $dayTimeManHours + $overtimeManHours;
+            // ดึงเวลาทำงานจาก sewing_man_act (ใช้แค่ thour ไม่คูณจำนวนคน)
+            try {
+                // DayTime = เช้า + บ่าย
+                $dayTimeSql = "SELECT SUM(thour) as total_hours FROM sewing_man_act 
+                              WHERE DATE(created_at) = :target_date 
+                              AND shift IN ('เช้า', 'บ่าย')";
+                $dayTimeStmt = $conn->prepare($dayTimeSql);
+                $dayTimeStmt->execute([':target_date' => $modelDate]);
+                $dayTimeResult = $dayTimeStmt->fetch(PDO::FETCH_ASSOC);
+                $dayTimeHours = (float)($dayTimeResult['total_hours'] ?? 0.0);
+                
+                // OT
+                $otSql = "SELECT SUM(thour) as total_hours FROM sewing_man_act 
+                         WHERE DATE(created_at) = :target_date 
+                         AND shift = 'OT'";
+                $otStmt = $conn->prepare($otSql);
+                $otStmt->execute([':target_date' => $modelDate]);
+                $otResult = $otStmt->fetch(PDO::FETCH_ASSOC);
+                $overtimeHours = (float)($otResult['total_hours'] ?? 0.0);
+            } catch(Exception $e) {
+                $dayTimeHours = 0.0;
+                $overtimeHours = 0.0;
+            }
             
-            // If there are multiple models on the same date, proportionally distribute man-hours
-            $totalProductionOnDate = 0;
-            foreach ($productionSummaryByModel as $tempSummary) {
+            // หาจำนวนชิ้นรวมทั้งหมดในวันนั้นของไลน์นี้ (แยก DayTime และ OT)
+            $totalQcDayTimeOnDate = 0;
+            $totalQcOTOnDate = 0;
+            foreach ($qcSummaryByComponent as $tempSummary) {
                 if ($tempSummary['date'] === $modelDate) {
-                    $totalProductionOnDate += $tempSummary['total_qty'];
+                    $totalQcDayTimeOnDate += $tempSummary['qty_daytime'];
+                    $totalQcOTOnDate += $tempSummary['qty_ot'];
                 }
             }
             
-            // Distribute man-hours proportionally based on production quantity
-            $proportionFactor = $totalProductionOnDate > 0 ? ($totalQuantity / $totalProductionOnDate) : 0;
-            $proportionalDayTimeHours = $dayTimeManHours * $proportionFactor;
-            $proportionalOTHours = $overtimeManHours * $proportionFactor;
-            $proportionalTotalHours = $proportionalDayTimeHours + $proportionalOTHours;
+            // กระจายเวลาตามสัดส่วนจำนวนชิ้นของ component นี้
+            $proportionalDayTimeHours = 0;
+            if ($totalQcDayTimeOnDate > 0) {
+                $proportionalDayTimeHours = ($qcSummary['qty_daytime'] / $totalQcDayTimeOnDate) * $dayTimeHours;
+            }
             
-            $detailSheet->setCellValue("M{$summaryRowIndex}", $prodSummary['date']);
-            $detailSheet->setCellValue("N{$summaryRowIndex}", $prodSummary['model']);
-            $detailSheet->setCellValue("O{$summaryRowIndex}", $totalQuantity);
-            $detailSheet->setCellValue("P{$summaryRowIndex}", round($proportionalDayTimeHours, 2));
-            $detailSheet->setCellValue("Q{$summaryRowIndex}", round($proportionalOTHours, 2));
-            $detailSheet->setCellValue("R{$summaryRowIndex}", round($proportionalTotalHours, 2));
-            $summaryRowIndex++;
-        }
+            $proportionalOTHours = 0;
+            if ($totalQcOTOnDate > 0) {
+                $proportionalOTHours = ($qcSummary['qty_ot'] / $totalQcOTOnDate) * $overtimeHours;
+            }
+            
+            // แปลงเป็นวินาที (เวลารวมที่ใช้ผลิต component นี้)
+            $totalSecondsDayTime = '';
+            if ($proportionalDayTimeHours > 0) {
+                $totalSecondsDayTime = round($proportionalDayTimeHours * 3600, 2);
+            }
+            
+            $totalSecondsOT = '';
+            if ($proportionalOTHours > 0) {
+                $totalSecondsOT = round($proportionalOTHours * 3600, 2);
+            }
 
-        // Fill QC summary (columns L, M, N, O, P)
-        $qcSummaryRowIndex = 2;
-        foreach ($qcSummaryByComponent as $qcSummary) {
-            $detailSheet->setCellValue("T{$qcSummaryRowIndex}", $qcSummary['date']);
-            $detailSheet->setCellValue("U{$qcSummaryRowIndex}", $qcSummary['model']);
-            $detailSheet->setCellValue("V{$qcSummaryRowIndex}", $qcSummary['component']);
-            $detailSheet->setCellValue("W{$qcSummaryRowIndex}", $qcSummary['nickname']);
-            $detailSheet->setCellValue("X{$qcSummaryRowIndex}", $qcSummary['total_qty']);
+            
+            $detailSheet->setCellValue("Q{$qcSummaryRowIndex}", $qcSummary['date']);
+            $detailSheet->setCellValue("R{$qcSummaryRowIndex}", $qcSummary['model']);
+            $detailSheet->setCellValue("S{$qcSummaryRowIndex}", $qcSummary['component']);
+            $detailSheet->setCellValue("T{$qcSummaryRowIndex}", $qcSummary['nickname']);
+            $detailSheet->setCellValue("U{$qcSummaryRowIndex}", $qcSummary['total_qty']);
+            $detailSheet->setCellValue("V{$qcSummaryRowIndex}", $totalSecondsDayTime);
+            $detailSheet->setCellValue("W{$qcSummaryRowIndex}", $totalSecondsOT);
             $qcSummaryRowIndex++;
         }      
 
         // Format detail sheet
-        foreach (['A', 'B', 'C', 'D', 'F', 'G', 'H', 'I', 'J', 'K', 'M', 'N', 'O', 'P', 'Q', 'R', 'T', 'U', 'V', 'W', 'X'] as $columnLetter) {
+        foreach (['A', 'B', 'C', 'D', 'F', 'G', 'H', 'I', 'J', 'K', 'M', 'N', 'O', 'Q', 'R', 'S','T', 'U', 'V', 'W'] as $columnLetter) {
             $detailSheet->getColumnDimension($columnLetter)->setAutoSize(true);
         }
         // Add header background color
@@ -739,42 +677,42 @@ try {
             ->getStartColor()
             ->setRGB($colorheader);
 
-        $detailSheet->getStyle("M1:R1")
+        $detailSheet->getStyle("M1:O1")
             ->getFill()
             ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()
             ->setRGB($colorheader);
 
-        $detailSheet->getStyle("T1:X1")
+        $detailSheet->getStyle("Q1:W1")
             ->getFill()
             ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()
             ->setRGB($colorheader);
             
         // สลับสีแถว (striping rows)
-        // for ($i = 2; $i < $detailRowIndex; $i += 2) {
-        //     $detailSheet->getStyle("A{$i}:D{$i}")
-        //         ->getFill()
-        //         ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-        //         ->getStartColor()
-        //         ->setRGB($colorrow); 
-        // }
-        // for ($i = 2; $i < $qcDetailRowIndex; $i += 2) {
-        //     $detailSheet->getStyle("F{$i}:K{$i}")
-        //         ->getFill()
-        //         ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-        //         ->getStartColor()
-        //         ->setRGB($colorrow); 
-        // }
+        for ($i = 2; $i < $detailRowIndex; $i += 2) {
+            $detailSheet->getStyle("A{$i}:D{$i}")
+                ->getFill()
+                ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                ->getStartColor()
+                ->setRGB($colorrow); 
+        }
+        for ($i = 2; $i < $qcDetailRowIndex; $i += 2) {
+            $detailSheet->getStyle("F{$i}:K{$i}")
+                ->getFill()
+                ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                ->getStartColor()
+                ->setRGB($colorrow); 
+        }
         for ($i = 2; $i < $summaryRowIndex; $i += 2) {
-            $detailSheet->getStyle("M{$i}:R{$i}")
+            $detailSheet->getStyle("M{$i}:O{$i}")
                 ->getFill()
                 ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
                 ->getStartColor()
                 ->setRGB($colorrow); 
         }
         for ($i = 2; $i < $qcSummaryRowIndex; $i += 2) {
-            $detailSheet->getStyle("T{$i}:X{$i}")
+            $detailSheet->getStyle("Q{$i}:W{$i}")
                 ->getFill()
                 ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
                 ->getStartColor()
@@ -783,8 +721,8 @@ try {
         // Bold all headers
         $detailSheet->getStyle('A1:D1')->getFont()->setBold(true)->getColor()->setRGB($textheader);
         $detailSheet->getStyle('F1:K1')->getFont()->setBold(true)->getColor()->setRGB($textheader);
-        $detailSheet->getStyle('M1:R1')->getFont()->setBold(true)->getColor()->setRGB($textheader);
-        $detailSheet->getStyle('T1:X1')->getFont()->setBold(true)->getColor()->setRGB($textheader);
+        $detailSheet->getStyle('M1:O1')->getFont()->setBold(true)->getColor()->setRGB($textheader);
+        $detailSheet->getStyle('Q1:W1')->getFont()->setBold(true)->getColor()->setRGB($textheader);
 
         // Add borders to main data
         // $detailSheet->getStyle("A1:E" . ($detailRowIndex - 1))
