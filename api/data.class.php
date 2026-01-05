@@ -297,7 +297,9 @@ class get_db {
                         SUM(qty) as total_qty,
                         COUNT(*) as total_items
                       FROM " . $table_name . " 
-                      WHERE DATE(created_at) BETWEEN :start_date AND :end_date GROUP BY DATE(created_at) ORDER BY date and status = '10'";
+                      WHERE DATE(created_at) BETWEEN :start_date AND :end_date AND status = '10' 
+                      GROUP BY DATE(created_at) 
+                      ORDER BY date";
             
             try {
                 $stmt = $this->conn->prepare($query);

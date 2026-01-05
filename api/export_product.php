@@ -1,8 +1,12 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-ini_set('memory_limit', '512M');
+ob_start(); // ป้องกัน output ก่อน header
+ini_set('display_errors', 0);
+ini_set('display_startup_errors', 0);
+error_reporting(0);
+ini_set('memory_limit', '1024M');
+ini_set('max_execution_time', 300); // เพิ่มเป็น 5 นาที
+set_time_limit(300); // เพิ่มเป็น 5 นาที
+
 require_once __DIR__ . '/../vendor/autoload.php';
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -156,7 +160,58 @@ function getShiftFromTime(string $time): string {
         return 'OT';
     }
 }
-
+/**
+ * Fetch target data from sewing_target table for specific date range
+ * @param PDO $pdo Database connection
+ * @param string $startDate Start date (Y-m-d)
+ * @param string $endDate End date (Y-m-d)
+ * @return array Target records grouped by line and date
+ */
+function fetchSewingTargets(PDO $pdo, string $startDate, string $endDate): array {
+    try {
+        $sql = "SELECT DATE(created_at) as target_date, fc, fb, rc, rb, 3rd as third, sub 
+                FROM sewing_target 
+                WHERE DATE(created_at) BETWEEN :start_date AND :end_date
+                ORDER BY created_at ASC";
+                
+        $statement = $pdo->prepare($sql);
+        $statement->execute([
+            ':start_date' => $startDate,
+            ':end_date' => $endDate
+        ]);
+        
+        $results = $statement->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Reorganize data by line and date, summing targets for each day
+        $targets = [];
+        foreach ($results as $row) {
+            $date = $row['target_date'];
+            
+            if (!isset($targets[$date])) {
+                $targets[$date] = [
+                    'fc' => 0,
+                    'fb' => 0,
+                    'rc' => 0,
+                    'rb' => 0,
+                    'third' => 0,
+                    'sub' => 0
+                ];
+            }
+            
+            $targets[$date]['fc'] += (int)($row['fc'] ?? 0);
+            $targets[$date]['fb'] += (int)($row['fb'] ?? 0);
+            $targets[$date]['rc'] += (int)($row['rc'] ?? 0);
+            $targets[$date]['rb'] += (int)($row['rb'] ?? 0);
+            $targets[$date]['third'] += (int)($row['third'] ?? 0);
+            $targets[$date]['sub'] += (int)($row['sub'] ?? 0);
+        }
+        
+        return $targets;
+        
+    } catch(Exception $e) {
+        return [];
+    }
+}
 // ==================== MAIN PROCESSING ====================
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
@@ -219,15 +274,16 @@ try {
     
     // Column headers
     $summarySheet->setCellValue('A4', 'ไลน์การผลิต');
-    $summarySheet->setCellValue('B4', 'จำนวนชิ้นผลิต');
-    $summarySheet->setCellValue('C4', 'จำนวนชิ้นตรวจ');
-    $summarySheet->setCellValue('D4', 'โมเดลทั้งหมด');
-    $summarySheet->setCellValue('E4', 'DayTime Man-Hours');
-    $summarySheet->setCellValue('F4', 'OT Man-Hours');
-    // $summarySheet->setCellValue('G4', 'DayTime Man-Power');
-    // $summarySheet->setCellValue('H4', 'OT Man-Power');
-    $summarySheet->setCellValue('I4', 'Total Man-Hours');
-    // $summarySheet->setCellValue('J4', 'Total OT Man-Power');
+    $summarySheet->setCellValue('B4', 'เป้าหมายการผลิต');
+    $summarySheet->setCellValue('C4', 'จำนวนผลิตจริง');
+    $summarySheet->setCellValue('D4', 'จำนวนชิ้นตรวจ');
+    $summarySheet->setCellValue('E4', 'โมเดลทั้งหมด');
+    $summarySheet->setCellValue('F4', 'DayTime Man-Hours');
+    $summarySheet->setCellValue('G4', 'OT Man-Hours');
+    $summarySheet->setCellValue('H4', 'Total Man-Hours');
+
+    // Fetch all targets for summary
+    $allTargetsSummary = fetchSewingTargets($conn, $reportStartDate, $reportEndDate);
 
     // Fill summary data
     $summaryRowIndex = 5;
@@ -243,35 +299,41 @@ try {
             $qualityControlTotal += (int)($qcRecord['qty'] ?? 1);
         }
         
+        // Calculate total target for this line across all dates
+        $lineTotalTarget = 0;
+        foreach ($allTargetsSummary as $dateTargets) {
+            $lineTotalTarget += $dateTargets[$lineCode] ?? 0;
+        }
+        
         // Calculate man-hours for each shift
         $morningManHours = calculateManHours($conn, $lineCode, $reportStartDate, $reportEndDate, 'เช้า');
         $afternoonManHours = calculateManHours($conn, $lineCode, $reportStartDate, $reportEndDate, 'บ่าย');
         $overtimeManHours = calculateManHours($conn, $lineCode, $reportStartDate, $reportEndDate, 'OT');
 
+        $tt_hour = $morningManHours['working_hours'] + $afternoonManHours['working_hours'] + $overtimeManHours['working_hours'];
+
         // Fill row data
-        $summarySheet->setCellValue('A' . $summaryRowIndex, $productionLineNames[$lineCode]);                                           // col A Line Name
-        $summarySheet->setCellValue('B' . $summaryRowIndex, $lineData['total_qty']);                                                    // col B Total Qty
-        $summarySheet->setCellValue('C' . $summaryRowIndex, $qualityControlTotal);                                                      // col C QC Total
-        $summarySheet->setCellValue('D' . $summaryRowIndex, $lineData['unique_items']);                                                 // col D Models Total
-        $summarySheet->setCellValue('E' . $summaryRowIndex, $morningManHours['man_hours'] + $afternoonManHours['man_hours']);   // col E DayTime working hrs
-        $summarySheet->setCellValue('F' . $summaryRowIndex, $overtimeManHours['man_hours']);                                        // col F OT working hrs
-        // $summarySheet->setCellValue('G' . $summaryRowIndex, round(($morningManHours['man_power'] + $afternoonManHours['man_power']) / 2));     // col G DayTime
-        // $summarySheet->setCellValue('H' . $summaryRowIndex, $overtimeManHours['man_power']);                                            // col H OT Man-Power
-        $summarySheet->setCellValue('I' . $summaryRowIndex, "=SUM(E{$summaryRowIndex}:F{$summaryRowIndex})");                           // col I Total working hrs
-        // $summarySheet->setCellValue('J' . $summaryRowIndex, "=SUM(G{$summaryRowIndex}:H{$summaryRowIndex})");                           // col J Total Man-Power
+        $summarySheet->setCellValue('A' . $summaryRowIndex, $productionLineNames[$lineCode]);                                   // col A Line Name
+        $summarySheet->setCellValue('B' . $summaryRowIndex, $lineTotalTarget * $tt_hour);                                       // col B Target Total
+        $summarySheet->setCellValue('C' . $summaryRowIndex, $lineData['total_qty']);                                            // col C Total Qty
+        $summarySheet->setCellValue('D' . $summaryRowIndex, $qualityControlTotal);                                              // col D QC Total
+        $summarySheet->setCellValue('E' . $summaryRowIndex, $lineData['unique_items']);                                         // col E Models Total
+        $summarySheet->setCellValue('F' . $summaryRowIndex, $morningManHours['man_hours'] + $afternoonManHours['man_hours']);   // col F DayTime man-hours
+        $summarySheet->setCellValue('G' . $summaryRowIndex, $overtimeManHours['man_hours']);                                    // col G OT man-hours
+        $summarySheet->setCellValue('H' . $summaryRowIndex, "=SUM(F{$summaryRowIndex}:G{$summaryRowIndex})");                   // col H Total man-hours
 
         $summaryRowIndex++;
 
     }
         // Auto-size columns
-        foreach (['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] as $columnLetter) {
+        foreach (['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] as $columnLetter) {
             $summarySheet->getColumnDimension($columnLetter)->setAutoSize(true);
         }
         // Bold headers
-        $summarySheet->getStyle('A4:J4')->getFont()->setBold(true)->getColor()->setRGB($textheader);
+        $summarySheet->getStyle('A4:H4')->getFont()->setBold(true)->getColor()->setRGB($textheader);
 
         // Add header background color
-        $summarySheet->getStyle("A4:J4") // แถวหัวตาราง
+        $summarySheet->getStyle("A4:H4") // แถวหัวตาราง
             ->getFill()
             ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()
@@ -296,7 +358,7 @@ try {
 
         // สลับสีแถว (striping rows)
         for ($i = 5; $i < $summaryRowIndex; $i += 2) {
-            $summarySheet->getStyle("A{$i}:J{$i}")
+            $summarySheet->getStyle("A{$i}:H{$i}")
                 ->getFill()
                 ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
                 ->getStartColor()
@@ -306,10 +368,10 @@ try {
     // ==================== DAILY MAN-HOUR SHEET ====================
     
     $manHourSheet = $excelWorkbook->createSheet();
-    $manHourSheet->setTitle('Man-Hour รายวัน');
+    $manHourSheet->setTitle('ชั่วโมงทำงานและเป้าหมายรายวัน');
 
     // Man-hour sheet headers
-    $manHourSheet->setCellValue('A1', 'สรุป Man-Hour รายวัน');
+    $manHourSheet->setCellValue('A1', 'รายงานชั่วโมงทำงานและเป้าหมายรายวัน');
     $manHourSheet->setCellValue('A2', 'ช่วงวันที่: ' . $reportStartDate . 
         ($reportStartDate === $reportEndDate ? '' : ' ถึง ' . $reportEndDate));
     
@@ -320,6 +382,7 @@ try {
     $manHourSheet->setCellValue('D4', 'OT (ชั่วโมง)');
     $manHourSheet->setCellValue('E4', 'DayTime (คน)');
     $manHourSheet->setCellValue('F4', 'OT (คน)');
+    $manHourSheet->setCellValue('G4', 'เป้าหมาย (ชิ้น/ชั่วโมง)');
 
     // Generate date range
     $dateRange = [];
@@ -329,6 +392,9 @@ try {
         $currentDate->modify('+1 day');
     }
 
+    // Fetch all targets once
+    $allTargets = fetchSewingTargets($conn, $reportStartDate, $reportEndDate);
+
     // Fill daily man-hour data
     $manHourRowIndex = 5;
     foreach ($dateRange as $targetDate) {
@@ -337,9 +403,11 @@ try {
             $dailyMorningHours = calculateManHours($conn, $lineCode, $targetDate, $targetDate, 'เช้า');
             $dailyAfternoonHours = calculateManHours($conn, $lineCode, $targetDate, $targetDate, 'บ่าย');
             $dailyOvertimeHours = calculateManHours($conn, $lineCode, $targetDate, $targetDate, 'OT');
-            $dailyTotalHours = $dailyMorningHours + $dailyAfternoonHours + $dailyOvertimeHours;
-
-            // Skip rows with no data
+            $dailyTotalHours = $dailyMorningHours['man_hours'] + $dailyAfternoonHours['man_hours'] + $dailyOvertimeHours['man_hours'];
+            
+            // Get targets for this date and line
+            $dayTimeTarget = $allTargets[$targetDate][$lineCode] ?? 0;
+            // Skip rows with no man-hours data
             if ($dailyTotalHours == 0) {
                 continue;
             }
@@ -351,15 +419,16 @@ try {
             $manHourSheet->setCellValue("D{$manHourRowIndex}", $dailyOvertimeHours['working_hours']);
             $manHourSheet->setCellValue("E{$manHourRowIndex}", round(($dailyMorningHours['man_power'] + $dailyAfternoonHours['man_power']) / 2));
             $manHourSheet->setCellValue("F{$manHourRowIndex}", $dailyOvertimeHours['man_power']);
+            $manHourSheet->setCellValue("G{$manHourRowIndex}", $dayTimeTarget);
             $manHourRowIndex++;
         }
     }
 
     // Format header
-    $manHourSheet->getStyle("A4:F4")->getFont()->setBold(true)->getColor()->setRGB($textheader);
+    $manHourSheet->getStyle("A4:G4")->getFont()->setBold(true)->getColor()->setRGB($textheader);
 
     // Add header background color
-    $manHourSheet->getStyle("A4:F4") // แถวหัวตาราง
+    $manHourSheet->getStyle("A4:G4") // แถวหัวตาราง
         ->getFill()
         ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
         ->getStartColor()
@@ -374,14 +443,14 @@ try {
     // }
 
     // Auto-size columns
-    foreach (['A', 'B', 'C', 'D', 'E', 'F'] as $columnLetter) {
+    foreach (['A', 'B', 'C', 'D', 'E', 'F', 'G'] as $columnLetter) {
         $manHourSheet->getColumnDimension($columnLetter)->setAutoSize(true);
     }
 
 
     // สลับสีแถว (striping rows)
     for ($i = 5; $i < $manHourRowIndex; $i += 2) {
-        $manHourSheet->getStyle("A{$i}:F{$i}")
+        $manHourSheet->getStyle("A{$i}:G{$i}")
             ->getFill()
             ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()
@@ -754,6 +823,11 @@ try {
     $exportFilename = 'production_report_' . $reportStartDate . 
         ($reportStartDate === $reportEndDate ? '' : '_to_' . $reportEndDate) . '.xlsx';
 
+    // ล้าง output buffer ก่อนส่ง header
+    if (ob_get_level()) {
+        ob_end_clean();
+    }
+
     // Set HTTP headers for Excel download
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     header('Content-Disposition: attachment;filename="' . $exportFilename . '"');
@@ -765,6 +839,9 @@ try {
     exit;
 
 } catch (Exception $exception) {
+    if (ob_get_level()) {
+        ob_end_clean();
+    }
     http_response_code(500);
     echo 'Export error: ' . $exception->getMessage();
     exit;
