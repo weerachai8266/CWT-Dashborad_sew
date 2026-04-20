@@ -48,7 +48,6 @@ function getStatusEmoji(percentage) {
     if (percentage >= 85) return '🟡';
     return '🔴';
 }
-// แก้บรรทัดที่ 1608 ด้วย
 // Get color based on percentage
 function getColorByPercentage(percentage) {
     if (percentage >= 101) return PERCENTAGE_COLORS.excellent;
@@ -72,223 +71,589 @@ function drawKPIGauge(overallPct, lineData) {
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
 
-    // Responsive canvas sizing — cap height so gauge stays compact
+    // Responsive canvas sizing
     const cssW = canvas.parentElement.clientWidth || 480;
-    const isMobile = cssW < 500;
-    const rawH  = isMobile ? Math.round(cssW * 0.72) : Math.round(cssW * 0.34);
-    const cssH  = Math.min(rawH, isMobile ? 320 : 280);   // max height cap
+    const isMobile = cssW < 560;
+    const rawH  = isMobile ? Math.round(cssW * 1.05) : Math.round(cssW * 0.34);
+    const cssH  = Math.min(rawH, isMobile ? 420 : 280);
     canvas.style.height = cssH + 'px';
     canvas.width  = Math.round(cssW * dpr);
     canvas.height = Math.round(cssH * dpr);
     ctx.scale(dpr, dpr);
 
     const W = cssW, H = cssH;
-    const cx = isMobile ? W / 2 : W * 0.36;
-    const cy = isMobile ? H * 0.80 : H * 0.88;
-    // R must leave room above arc: top label sits at cy - (R + arcW/2 + 20) >= 8px
-    // Solve: R <= (cy - 28) / 1.10  →  use cy * 0.72 as safe upper bound
-    const R  = isMobile ? Math.min(cx - 18, cy * 0.72) : Math.min(cx - 20, cy * 0.72);
-    const arcW = Math.round(R * 0.40);  // arc thickness proportional to radius  แถบสีหนาขึ้น
-    const MAX = 120;
+    const prodRate = window._productivityLastRate ?? 0;
+    const hasProductivity = true;
 
-    // angle: 0%→left(π), 100%→right(2π)
-    const toAngle = v => Math.PI * (1 + v / MAX);
+    // ── helper: draw one half-circle speedometer ──────────────
+    function drawSpeedometer(cx, cy, R, arcW, value, MAX, segments, ticks, centerLines, badge) {
+        const toA = v => Math.PI * (1 + v / MAX);
 
-    // ── Background track ──────────────────────────────────────
-    ctx.beginPath();
-    ctx.arc(cx, cy, R, Math.PI, 0, false);
-    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
-    ctx.lineWidth = arcW + 8;
-    ctx.stroke();
-
-    // ── Colored arc segments (สีตาม PERCENTAGE_COLORS) ────────
-    const segments = [
-        { from: 0,   to: 84,  color: PERCENTAGE_COLORS.critical  },  // 0–84%
-        { from: 84,  to: 95,  color: PERCENTAGE_COLORS.warning   },  // 85–94%
-        { from: 95,  to: 100, color: PERCENTAGE_COLORS.good      },  // 95–100%
-        { from: 100, to: 120, color: PERCENTAGE_COLORS.excellent },  // 101%+
-    ];
-    segments.forEach(s => {
+        // Background track
         ctx.beginPath();
-        ctx.arc(cx, cy, R, toAngle(s.from), toAngle(s.to), false);
-        ctx.strokeStyle = s.color;
-        ctx.lineWidth = arcW;
-        ctx.lineCap = 'butt';
-        ctx.stroke();
-    });
-
-    // ── Tick marks & value labels (outside arc only) ───────────
-    const ticks = [0, 84, 95, 100, 120];   // zone boundaries
-    const tickFontSize = Math.max(9, Math.round(R * 0.08));
-    ticks.forEach(v => {
-        const a = toAngle(v);
-        const cos = Math.cos(a), sin = Math.sin(a);
-        // short tick line spanning only the outer edge
-        const iR = R + arcW / 2 + 2, oR = R + arcW / 2 + 9;
-        ctx.beginPath();
-        ctx.moveTo(cx + iR * cos, cy + iR * sin);
-        ctx.lineTo(cx + oR * cos, cy + oR * sin);
-        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-        ctx.lineWidth = 1.5;
+        ctx.arc(cx, cy, R, Math.PI, 0, false);
+        ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+        ctx.lineWidth = arcW + 8;
         ctx.stroke();
 
-        const lR = R + arcW / 2 + 20;
-        ctx.fillStyle = '#6b7a8d';
-        ctx.font = `${tickFontSize}px Poppins, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(v + '%', cx + lR * cos, cy + lR * sin);
-    });
+        // Colored arc segments
+        segments.forEach(s => {
+            ctx.beginPath();
+            ctx.arc(cx, cy, R, toA(s.from), toA(s.to), false);
+            ctx.strokeStyle = s.color;
+            ctx.lineWidth = arcW;
+            ctx.lineCap = 'butt';
+            ctx.stroke();
+        });
 
-    // ── Animated needle ───────────────────────────────────────
-    const clamped = Math.min(Math.max(overallPct, 0), MAX);
-    const needleA = toAngle(clamped);
-    const nLen  = R - arcW / 2 - 6;
-    const nTail = R * 0.14;
+        // Tick marks & labels — ticks is array of {val, label}
+        const tickFontSize = Math.max(9, Math.round(R * 0.08));
+        ticks.forEach(t => {
+            const a = toA(t.val);
+            const cos = Math.cos(a), sin = Math.sin(a);
+            const iR = R + arcW / 2 + 2, oR = R + arcW / 2 + 9;
+            ctx.beginPath();
+            ctx.moveTo(cx + iR * cos, cy + iR * sin);
+            ctx.lineTo(cx + oR * cos, cy + oR * sin);
+            ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            const lR = R + arcW / 2 + 20;
+            ctx.fillStyle = '#6b7a8d';
+            ctx.font = `${tickFontSize}px Poppins, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(t.label, cx + lR * cos, cy + lR * sin);
+        });
 
-    ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.55)';
-    ctx.shadowBlur = 8;
-    ctx.beginPath();
-    ctx.moveTo(cx - nTail * Math.cos(needleA), cy - nTail * Math.sin(needleA));
-    ctx.lineTo(cx + nLen  * Math.cos(needleA), cy + nLen  * Math.sin(needleA));
-    ctx.strokeStyle = '#e2e8f0';
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-    ctx.shadowBlur = 0;
+        // Needle
+        const clamped = Math.min(Math.max(value, 0), MAX);
+        const needleA = toA(clamped);
+        const nLen  = R - arcW / 2 - 6;
+        const nTail = R * 0.14;
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.55)';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.moveTo(cx - nTail * Math.cos(needleA), cy - nTail * Math.sin(needleA));
+        ctx.lineTo(cx + nLen  * Math.cos(needleA), cy + nLen  * Math.sin(needleA));
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+        ctx.fillStyle = '#2a2f3a';
+        ctx.fill();
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.restore();
 
-    // needle hub
-    ctx.beginPath();
-    ctx.arc(cx, cy, 10, 0, Math.PI * 2);
-    ctx.fillStyle = '#2a2f3a';
-    ctx.fill();
-    ctx.strokeStyle = '#e2e8f0';
-    ctx.lineWidth = 2.5;
-    ctx.stroke();
-    ctx.restore();
+        // Center text lines
+        centerLines.forEach(line => {
+            ctx.textAlign = 'center';
+            ctx.fillStyle = line.color;
+            ctx.font = `${line.bold ? 'bold ' : ''}${line.size}px Poppins, sans-serif`;
+            ctx.textBaseline = line.baseline || 'middle';
+            ctx.fillText(line.text, cx, line.y);
+        });
 
-    // ── Center value & status (สีตาม PERCENTAGE_COLORS) ────────
-    const statusColor = clamped >= 100 ? PERCENTAGE_COLORS.excellent
-                      : clamped >= 95  ? PERCENTAGE_COLORS.good
-                      : clamped >= 85  ? PERCENTAGE_COLORS.warning
-                      :                  PERCENTAGE_COLORS.critical;
-    const statusText  = clamped >= 100 ? 'Excellent' : clamped >= 95 ? 'Good' : clamped >= 85 ? 'Warning' : 'Critical';
-    const valueFontSize = Math.max(20, Math.round(R * 0.20));
-    const labelFontSize = Math.max(10, Math.round(R * 0.085));
-
-    // big % sits well above the hub
-    ctx.textAlign = 'center';
-    ctx.fillStyle = statusColor;
-    ctx.font = `bold ${valueFontSize}px Poppins, sans-serif`;
-    ctx.textBaseline = 'bottom';
-    ctx.fillText(overallPct.toFixed(1) + '%', cx, cy - R * 0.28);
-
-    // small label below the hub
-    ctx.fillStyle = '#8896a8';
-    ctx.font = `${labelFontSize}px Poppins, sans-serif`;
-    ctx.textBaseline = 'top';
-    ctx.fillText('Overall KPI', cx, cy + 16);
-
-    // ── Update badge ──────────────────────────────────────────
-    const badge = document.getElementById('kpiGaugeLabel');
-    if (badge) {
-        badge.textContent = overallPct.toFixed(1) + '% — ' + statusText;
-        badge.className = 'badge fs-6 px-3 py-1';
-        badge.className += clamped >= 100 ? ' bg-primary' : clamped >= 95 ? ' bg-success' : clamped >= 85 ? ' bg-warning text-dark' : ' bg-danger';
+        // Badge update
+        if (badge) {
+            const el = document.getElementById(badge.id);
+            if (el) {
+                el.textContent = badge.text;
+                el.className = 'badge fs-6 px-3 py-1 ' + badge.cls;
+            }
+        }
     }
 
-    // ── Per-line mini progress bars (right panel on desktop, below on mobile) ──
-    if (!lineData) return;
-    const lines = ['fc', 'fb', 'rc', 'rb', 'third', 'sub'];
-    const lColors = { fc: '#28a745', fb: '#ffc107', rc: '#dc3545', rb: '#8b5cf6', third: '#fd7e14', sub: '#20c997' };
-    const lNames  = { fc: 'F/C', fb: 'F/B', rc: 'R/C', rb: 'R/B', third: '3RD', sub: 'Sub' };
+    // ── KPI gauge parameters ───────────────────────────────────
+    const kpiMAX = 120;
+    const kpiSegs = [
+        { from: 0,   to: 84,  color: PERCENTAGE_COLORS.critical  },
+        { from: 84,  to: 95,  color: PERCENTAGE_COLORS.warning   },
+        { from: 95,  to: 100, color: PERCENTAGE_COLORS.good      },
+        { from: 100, to: 120, color: PERCENTAGE_COLORS.excellent },
+    ];
+    const kpiTicks = [0, 84, 95, 100, 120];
+
+    const kpiClamped = Math.min(Math.max(overallPct, 0), kpiMAX);
+    const kpiColor   = kpiClamped >= 100 ? PERCENTAGE_COLORS.excellent
+                     : kpiClamped >= 95  ? PERCENTAGE_COLORS.good
+                     : kpiClamped >= 85  ? PERCENTAGE_COLORS.warning
+                     :                     PERCENTAGE_COLORS.critical;
+    const kpiStatus  = kpiClamped >= 100 ? 'Excellent' : kpiClamped >= 95 ? 'Good' : kpiClamped >= 85 ? 'Warning' : 'Critical';
+
+    // ── Productivity gauge parameters ─────────────────────────
+    const prodMAX  = 10;
+    const prodArcColor = '#17a2b8';                                 // single color
+    const prodSegs = [{ from: 0, to: 10, color: prodArcColor }];
+    const prodTicks = [0, 2, 4, 6, 8, 10];
+    const prodVal   = Math.min(prodRate || 0, prodMAX);
+    const prodClamped = Math.min(Math.max(prodVal, 0), prodMAX);
+    const prodColor   = prodArcColor;
+    const prodStatus  = prodVal.toFixed(2);
 
     if (isMobile) {
-        // Row of mini bars below the gauge arc
-        const barH   = Math.max(7, Math.round(R * 0.07));
-        const startX = W * 0.04;
-        const rowW   = W * 0.92;
-        const itemW  = rowW / lines.length;
-        const barY   = cy + 16;
+        // ── Mobile: KPI gauge top half, productivity below, bars at bottom ──
+        const halfH  = Math.round(H * (hasProductivity ? 0.38 : 0.55));
+        const kpiCX  = W / 2;
+        const kpiCY  = halfH * 0.84;
+        const kpiR   = Math.min((kpiCX - 18) / 1.22, kpiCY * 0.72);
+        const kpiAW  = Math.round(kpiR * 0.40);
+        const valFS  = Math.max(18, Math.round(kpiR * 0.20));
+        const lblFS  = Math.max(9,  Math.round(kpiR * 0.085));
+
+        drawSpeedometer(kpiCX, kpiCY, kpiR, kpiAW, overallPct, kpiMAX, kpiSegs,
+            kpiTicks.map(v => ({ val: v, label: v + '%' })),
+            [
+                { text: overallPct.toFixed(1) + '%', color: kpiColor, size: valFS, bold: true, baseline: 'bottom', y: kpiCY - kpiR * 0.28 },
+                { text: 'Overall KPI',               color: '#8896a8', size: lblFS, baseline: 'top', y: kpiCY + 14 },
+            ],
+            { id: 'kpiGaugeLabel', text: overallPct.toFixed(1) + '% — ' + kpiStatus,
+              cls: kpiClamped >= 100 ? 'bg-primary' : kpiClamped >= 95 ? 'bg-success' : kpiClamped >= 85 ? 'bg-warning text-dark' : 'bg-danger' }
+        );
+
+        if (hasProductivity) {
+            const p2Y  = halfH + Math.round((H - halfH) * 0.5);
+            const p2R  = Math.min((kpiCX - 18) / 1.22, (H - halfH) * 0.38);
+            const p2AW = Math.round(p2R * 0.40);
+            const p2VFS = Math.max(14, Math.round(p2R * 0.20));
+            const p2LFS = Math.max(8,  Math.round(p2R * 0.082));
+            drawSpeedometer(kpiCX, p2Y, p2R, p2AW, prodVal, prodMAX, prodSegs,
+                prodTicks.map(v => ({ val: v, label: String(v) })),
+                [
+                    { text: prodVal.toFixed(2),   color: prodColor, size: p2VFS, bold: true, baseline: 'bottom', y: p2Y - p2R * 0.28 },
+                    // { text: 'pcs / man-hr',        color: '#8896a8', size: Math.max(8, Math.round(p2R * 0.085)), baseline: 'bottom', y: p2Y - p2R * 0.08 },
+                    { text: 'Productivity',         color: '#8896a8', size: p2LFS, baseline: 'top', y: p2Y + 12 },
+                ],
+                { id: 'productivityGaugeLabel', text: '⚡ ' + prodVal.toFixed(2) + ' pcs/hr',
+                  cls: 'bg-info' }
+            );
+        }
+
+        // Per-line bars (bottom strip)
+        if (!lineData) return;
+        const lines   = ['fc', 'fb', 'rc', 'rb', 'third', 'sub'];
+        const lColors = { fc: '#28a745', fb: '#ffc107', rc: '#dc3545', rb: '#8b5cf6', third: '#fd7e14', sub: '#20c997' };
+        const lNames  = { fc: 'F/C', fb: 'F/B', rc: 'R/C', rb: 'R/B', third: '3RD', sub: 'Sub' };
+        const barH    = Math.max(7, Math.round(kpiR * 0.07));
+        const startX  = W * 0.04, rowW = W * 0.92;
+        const itemW   = rowW / lines.length;
+        const barY    = H - barH - 22;
 
         lines.forEach((key, i) => {
-            const d = lineData[key];
-            if (!d) return;
-            const pct = Math.min(d.percentage || 0, MAX);
+            const d = lineData[key]; if (!d) return;
+            const pct = Math.min(d.percentage || 0, kpiMAX);
             const x = startX + i * itemW + itemW * 0.08;
             const bw = itemW * 0.84;
-
             ctx.fillStyle = 'rgba(255,255,255,0.06)';
             ctx.beginPath(); ctx.roundRect(x, barY, bw, barH, 3); ctx.fill();
             ctx.fillStyle = lColors[key];
-            ctx.beginPath(); ctx.roundRect(x, barY, bw * (pct / MAX), barH, 3); ctx.fill();
-
+            ctx.beginPath(); ctx.roundRect(x, barY, bw * (pct / kpiMAX), barH, 3); ctx.fill();
             ctx.fillStyle = lColors[key];
-            ctx.font = `bold ${Math.max(9, Math.round(R * 0.08))}px Poppins, sans-serif`;
+            ctx.font = `bold ${Math.max(9, Math.round(kpiR * 0.08))}px Poppins, sans-serif`;
             ctx.textAlign = 'center'; ctx.textBaseline = 'top';
             ctx.fillText(lNames[key], x + bw / 2, barY + barH + 3);
-
             ctx.fillStyle = '#8896a8';
-            ctx.font = `${Math.max(8, Math.round(R * 0.07))}px Poppins, sans-serif`;
+            ctx.font = `${Math.max(8, Math.round(kpiR * 0.07))}px Poppins, sans-serif`;
             ctx.fillText((d.percentage || 0) + '%', x + bw / 2, barY + barH + 15);
         });
+
     } else {
-        // Vertical list of bars on the right side
-        const panelX  = W * 0.64;
-        const panelW  = W * 0.33;
-        const barH    = Math.max(8, Math.round(H * 0.048));
+        // ── Desktop: KPI gauge left, Productivity center (if available), per-line bars right ──
+        const kpiZoneW  = hasProductivity ? W * 0.35 : W * 0.64;
+        const prodZoneW = hasProductivity ? W * 0.29 : 0;
+        const barZoneX  = kpiZoneW + prodZoneW;
+        const barZoneW  = W - barZoneX;
+
+        // KPI gauge
+        const kpiCX = kpiZoneW / 2;
+        const kpiCY = H * 0.88;
+        const kpiR  = Math.min((kpiCX - 20) / 1.22, kpiCY * 0.72);
+        const kpiAW = Math.round(kpiR * 0.40);
+        const valFS = Math.max(20, Math.round(kpiR * 0.20));
+        const lblFS = Math.max(10, Math.round(kpiR * 0.085));
+
+        drawSpeedometer(kpiCX, kpiCY, kpiR, kpiAW, overallPct, kpiMAX, kpiSegs,
+            kpiTicks.map(v => ({ val: v, label: v + '%' })),
+            [
+                { text: overallPct.toFixed(1) + '%', color: kpiColor, size: valFS, bold: true, baseline: 'bottom', y: kpiCY - kpiR * 0.28 },
+                { text: 'Overall KPI',               color: '#8896a8', size: lblFS, baseline: 'top', y: kpiCY + 16 },
+            ],
+            { id: 'kpiGaugeLabel', text: overallPct.toFixed(1) + '% — ' + kpiStatus,
+              cls: kpiClamped >= 100 ? 'bg-primary' : kpiClamped >= 95 ? 'bg-success' : kpiClamped >= 85 ? 'bg-warning text-dark' : 'bg-danger' }
+        );
+
+        // Productivity gauge (center zone)
+        if (hasProductivity) {
+            const pCX  = kpiZoneW + prodZoneW / 2;
+            const pCY  = H * 0.88;
+            const pR   = Math.min((prodZoneW / 2 - 20) / 1.22, pCY * 0.72);
+            const pAW  = Math.round(pR * 0.40);
+            const pVFS = Math.max(16, Math.round(pR * 0.20));
+            const pUFS = Math.max(9,  Math.round(pR * 0.09));
+            const pLFS = Math.max(9,  Math.round(pR * 0.082));
+
+            // vertical divider
+            ctx.beginPath();
+            ctx.moveTo(kpiZoneW, H * 0.06);
+            ctx.lineTo(kpiZoneW, H * 0.96);
+            ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            drawSpeedometer(pCX, pCY, pR, pAW, prodVal, prodMAX, prodSegs,
+                prodTicks.map(v => ({ val: v, label: String(v) })),
+                [
+                    { text: prodVal.toFixed(2),   color: prodColor, size: pVFS, bold: true, baseline: 'bottom', y: pCY - pR * 0.28 },
+                    // { text: 'pcs / man-hr',        color: '#8896a8', size: pUFS, baseline: 'bottom', y: pCY - pR * 0.08 },
+                    { text: 'Productivity',         color: '#8896a8', size: pLFS, baseline: 'top',   y: pCY + 14 },
+                ],
+                { id: 'productivityGaugeLabel', text: '⚡ ' + prodVal.toFixed(2) + ' pcs/hr',
+                  cls: 'bg-info' }
+            );
+        }
+
+        // Per-line bars (right zone)
+        if (!lineData) return;
+        const lines    = ['fc', 'fb', 'rc', 'rb', 'third', 'sub'];
+        const lColors  = { fc: '#28a745', fb: '#ffc107', rc: '#dc3545', rb: '#8b5cf6', third: '#fd7e14', sub: '#20c997' };
+        const lNames   = { fc: 'F/C', fb: 'F/B', rc: 'R/C', rb: 'R/B', third: '3RD', sub: 'Sub' };
+        const barH     = Math.max(8, Math.round(H * 0.048));
         const fontSize = Math.max(10, Math.round(H * 0.044));
-        const titleH  = fontSize + 6;
-        const usableH = H - titleH - 16;                 // space below title
-        const spacing = Math.floor(usableH / lines.length);
-        const startY  = titleH + 8;                      // just below title
+        const titleH   = fontSize + 6;
+        const usableH  = H - titleH - 16;
+        const spacing  = Math.floor(usableH / lines.length);
+        const startY   = titleH + 8;
+        const panelX   = barZoneX + 8;
+        const labelW   = 36;                                           // width reserved for "F/C" etc.
+        const pctColW  = Math.max(28, Math.round(fontSize * 2.6));    // width reserved for "120%"
+        const barX0    = panelX + labelW;                              // bar starts here
+        const bw       = W - barX0 - pctColW - 6;                     // bar width: fits between label and pct column
+
+        // divider before bars
+        ctx.beginPath();
+        ctx.moveTo(barZoneX, H * 0.06);
+        ctx.lineTo(barZoneX, H * 0.96);
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = '#8896a8';
+        ctx.font = `${fontSize}px Poppins, sans-serif`;
+        ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        ctx.fillText('Per-Line Achievement', panelX, 6);
 
         lines.forEach((key, i) => {
-            const d = lineData[key];
-            if (!d) return;
-            const pct = Math.min(d.percentage || 0, MAX);
-            const y = startY + i * spacing + (spacing - barH) / 2;
+            const d = lineData[key]; if (!d) return;
+            const pct = Math.min(d.percentage || 0, kpiMAX);
+            const y   = startY + i * spacing + (spacing - barH) / 2;
 
-            // Label
             ctx.fillStyle = lColors[key];
             ctx.font = `bold ${fontSize}px Poppins, sans-serif`;
             ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
             ctx.fillText(lNames[key], panelX, y + barH / 2);
 
-            // Bar background
-            const barX = panelX + 36;
-            const bw   = panelW - 58;
+            const barX = barX0;
             ctx.fillStyle = 'rgba(255,255,255,0.06)';
             ctx.beginPath(); ctx.roundRect(barX, y, bw, barH, 4); ctx.fill();
-
-            // Bar fill
             ctx.fillStyle = lColors[key];
             ctx.globalAlpha = 0.85;
-            ctx.beginPath(); ctx.roundRect(barX, y, bw * (pct / MAX), barH, 4); ctx.fill();
+            ctx.beginPath(); ctx.roundRect(barX, y, bw * (pct / kpiMAX), barH, 4); ctx.fill();
             ctx.globalAlpha = 1;
 
-            // % text
             ctx.fillStyle = '#c8d4e0';
             ctx.font = `${fontSize}px Poppins, sans-serif`;
-            ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-            ctx.fillText((d.percentage || 0) + '%', barX + bw + 5, y + barH / 2);
+            ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+            ctx.fillText((d.percentage || 0) + '%', W - 4, y + barH / 2);
         });
-
-        // Panel title
-        ctx.fillStyle = '#8896a8';
-        ctx.font = `${fontSize}px Poppins, sans-serif`;
-        ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-        ctx.fillText('Per-Line Achievement', panelX, 6);
     }
 }
 
-// Redraw gauge on window resize
+// Redraw gauges on window resize
 window.addEventListener('resize', () => {
     if (window._gaugeLastData) {
         drawKPIGauge(window._gaugeLastData.overall, window._gaugeLastData.lines);
     }
+    if (window._qualityGaugeLastData) {
+        drawQualityKPIGauge(window._qualityGaugeLastData.overall, window._qualityGaugeLastData.defect, window._qualityGaugeLastData.lines);
+    }
 });
+
+// ==================== Quality KPI Gauge ====================
+function drawQualityKPIGauge(overallQuality, overallDefect, lineData) {
+    const canvas = document.getElementById('qualityKpiGaugeCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+
+    const cssW = canvas.parentElement.clientWidth || 480;
+    const isMobile = cssW < 560;
+    const rawH  = isMobile ? Math.round(cssW * 1.05) : Math.round(cssW * 0.34);
+    const cssH  = Math.min(rawH, isMobile ? 420 : 280);
+    canvas.style.height = cssH + 'px';
+    canvas.width  = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    ctx.scale(dpr, dpr);
+
+    const W = cssW, H = cssH;
+
+    // ── helper: draw one half-circle speedometer ──────────────
+    function drawSpeedometer(cx, cy, R, arcW, value, MAX, segments, ticks, centerLines, badge) {
+        const toA = v => Math.PI * (1 + v / MAX);
+        ctx.beginPath();
+        ctx.arc(cx, cy, R, Math.PI, 0, false);
+        ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+        ctx.lineWidth = arcW + 8;
+        ctx.stroke();
+        segments.forEach(s => {
+            ctx.beginPath();
+            ctx.arc(cx, cy, R, toA(s.from), toA(s.to), false);
+            ctx.strokeStyle = s.color;
+            ctx.lineWidth = arcW;
+            ctx.lineCap = 'butt';
+            ctx.stroke();
+        });
+        const tickFontSize = Math.max(9, Math.round(R * 0.08));
+        ticks.forEach(t => {
+            const a = toA(t.val);
+            const cos = Math.cos(a), sin = Math.sin(a);
+            const iR = R + arcW / 2 + 2, oR = R + arcW / 2 + 9;
+            ctx.beginPath();
+            ctx.moveTo(cx + iR * cos, cy + iR * sin);
+            ctx.lineTo(cx + oR * cos, cy + oR * sin);
+            ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            const lR = R + arcW / 2 + 20;
+            ctx.fillStyle = '#6b7a8d';
+            ctx.font = `${tickFontSize}px Poppins, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(t.label, cx + lR * cos, cy + lR * sin);
+        });
+        const clamped = Math.min(Math.max(value, 0), MAX);
+        const needleA = toA(clamped);
+        const nLen  = R - arcW / 2 - 6;
+        const nTail = R * 0.14;
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.55)';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.moveTo(cx - nTail * Math.cos(needleA), cy - nTail * Math.sin(needleA));
+        ctx.lineTo(cx + nLen  * Math.cos(needleA), cy + nLen  * Math.sin(needleA));
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+        ctx.fillStyle = '#2a2f3a';
+        ctx.fill();
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.restore();
+        centerLines.forEach(line => {
+            ctx.textAlign = 'center';
+            ctx.fillStyle = line.color;
+            ctx.font = `${line.bold ? 'bold ' : ''}${line.size}px Poppins, sans-serif`;
+            ctx.textBaseline = line.baseline || 'middle';
+            ctx.fillText(line.text, cx, line.y);
+        });
+        if (badge) {
+            const el = document.getElementById(badge.id);
+            if (el) {
+                el.textContent = badge.text;
+                el.className = 'badge fs-6 px-3 py-1 ' + badge.cls;
+            }
+        }
+    }
+
+    // ── Quality Rate gauge parameters ─────────────────────────
+    const qMAX   = 100;
+    const qSegs  = [
+        { from: 0,  to: 84,  color: PERCENTAGE_COLORS.critical },
+        { from: 84, to: 95,  color: PERCENTAGE_COLORS.warning  },
+        { from: 95, to: 100, color: PERCENTAGE_COLORS.good     },
+    ];
+    const qTicks = [0, 84, 95, 100];
+    const qClamped = Math.min(Math.max(overallQuality, 0), qMAX);
+    const qColor   = qClamped >= 95 ? PERCENTAGE_COLORS.good
+                   : qClamped >= 85 ? PERCENTAGE_COLORS.warning
+                   :                  PERCENTAGE_COLORS.critical;
+    const qStatus  = qClamped >= 95 ? 'Good' : qClamped >= 85 ? 'Warning' : 'Critical';
+
+    // ── Defect Rate gauge parameters ──────────────────────────
+    const dMAX   = 5;
+    const dSegs  = [
+        { from: 0, to: 1,  color: PERCENTAGE_COLORS.good     },
+        { from: 1, to: 3,  color: PERCENTAGE_COLORS.warning  },
+        { from: 3, to: 5,  color: PERCENTAGE_COLORS.critical },
+    ];
+    const dTicks   = [0, 1, 3, 5];
+    const dVal     = Math.min(overallDefect || 0, dMAX);
+    const dClamped = dVal;
+    const defColor = dClamped <= 1 ? PERCENTAGE_COLORS.good
+                   : dClamped <= 3 ? PERCENTAGE_COLORS.warning
+                   :                 PERCENTAGE_COLORS.critical;
+    const dStatus  = dClamped <= 1 ? 'Good' : dClamped <= 3 ? 'Warning' : 'Critical';
+
+    if (isMobile) {
+        // ── Mobile: Quality top, Defect center, bars bottom ──
+        const halfH  = Math.round(H * 0.38);
+        const qCX = W / 2, qCY = halfH * 0.84;
+        const qR  = Math.min((qCX - 18) / 1.22, qCY * 0.72);
+        const qAW = Math.round(qR * 0.40);
+        drawSpeedometer(qCX, qCY, qR, qAW, overallQuality, qMAX, qSegs,
+            qTicks.map(v => ({ val: v, label: v + '%' })),
+            [
+                { text: overallQuality.toFixed(1) + '%', color: qColor, size: Math.max(18, Math.round(qR * 0.20)), bold: true, baseline: 'bottom', y: qCY - qR * 0.28 },
+                { text: 'Quality Rate', color: '#8896a8', size: Math.max(9, Math.round(qR * 0.085)), baseline: 'top', y: qCY + 14 },
+            ],
+            { id: 'qualityKpiGaugeLabel', text: overallQuality.toFixed(1) + '% — ' + qStatus,
+              cls: qClamped >= 95 ? 'bg-success' : qClamped >= 85 ? 'bg-warning text-dark' : 'bg-danger' }
+        );
+
+        const p2Y  = halfH + Math.round((H - halfH) * 0.5);
+        const p2R  = Math.min(qCX - 18, (H - halfH) * 0.38);
+        const p2AW = Math.round(p2R * 0.40);
+        drawSpeedometer(qCX, p2Y, p2R, p2AW, dVal, dMAX, dSegs,
+            dTicks.map(v => ({ val: v, label: v + '%' })),
+            [
+                { text: dVal.toFixed(2) + '%', color: defColor, size: Math.max(14, Math.round(p2R * 0.20)), bold: true, baseline: 'bottom', y: p2Y - p2R * 0.28 },
+                { text: 'Defect Rate', color: '#8896a8', size: Math.max(8, Math.round(p2R * 0.082)), baseline: 'top', y: p2Y + 12 },
+            ],
+            { id: 'qualityDefectGaugeLabel', text: dVal.toFixed(2) + '% — ' + dStatus,
+              cls: dClamped <= 2 ? 'bg-success' : dClamped <= 5 ? 'bg-warning text-dark' : 'bg-danger' }
+        );
+
+    } else {
+        // ── Desktop: Quality Rate left | Defect Rate center | per-line bars right ──
+        const qZoneW = W * 0.35;
+        const dZoneW = W * 0.29;
+        const barZoneX = qZoneW + dZoneW;
+
+        // Quality Rate gauge (left)
+        const qCX = qZoneW / 2;
+        const qCY = H * 0.88;
+        const qR  = Math.min((qCX - 20) / 1.22, qCY * 0.72);
+        const qAW = Math.round(qR * 0.40);
+
+        drawSpeedometer(qCX, qCY, qR, qAW, overallQuality, qMAX, qSegs,
+            qTicks.map(v => ({ val: v, label: v + '%' })),
+            [
+                { text: overallQuality.toFixed(1) + '%', color: qColor, size: Math.max(20, Math.round(qR * 0.20)), bold: true, baseline: 'bottom', y: qCY - qR * 0.28 },
+                { text: 'Quality Rate', color: '#8896a8', size: Math.max(10, Math.round(qR * 0.085)), baseline: 'top', y: qCY + 16 },
+            ],
+            { id: 'qualityKpiGaugeLabel', text: overallQuality.toFixed(1) + '% — ' + qStatus,
+              cls: qClamped >= 95 ? 'bg-success' : qClamped >= 85 ? 'bg-warning text-dark' : 'bg-danger' }
+        );
+
+        // Divider left|center
+        ctx.beginPath();
+        ctx.moveTo(qZoneW, H * 0.06); ctx.lineTo(qZoneW, H * 0.96);
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1; ctx.stroke();
+
+        // Defect Rate gauge (center)
+        const dCX  = qZoneW + dZoneW / 2;
+        const dCY  = H * 0.88;
+        const dR   = Math.min((dZoneW / 2 - 20) / 1.22, dCY * 0.72);
+        const dAW  = Math.round(dR * 0.40);
+        const dVFS = Math.max(16, Math.round(dR * 0.20));
+        const dLFS = Math.max(9,  Math.round(dR * 0.082));
+
+        drawSpeedometer(dCX, dCY, dR, dAW, dVal, dMAX, dSegs,
+            dTicks.map(v => ({ val: v, label: v + '%' })),
+            [
+                { text: dVal.toFixed(2) + '%', color: defColor, size: dVFS, bold: true, baseline: 'bottom', y: dCY - dR * 0.28 },
+                { text: 'Defect Rate',          color: '#8896a8', size: dLFS, baseline: 'top', y: dCY + 14 },
+            ],
+            { id: 'qualityDefectGaugeLabel', text: dVal.toFixed(2) + '% — ' + dStatus,
+              cls: dClamped <= 2 ? 'bg-success' : dClamped <= 5 ? 'bg-warning text-dark' : 'bg-danger' }
+        );
+
+        // Divider center|bars
+        ctx.beginPath();
+        ctx.moveTo(barZoneX, H * 0.06); ctx.lineTo(barZoneX, H * 0.96);
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1; ctx.stroke();
+
+        // Per-line bars (right zone)
+        if (!lineData) return;
+        const lines    = ['fc', 'fb', 'rc', 'rb', 'third', 'sub'];
+        const lColors  = { fc: '#28a745', fb: '#ffc107', rc: '#dc3545', rb: '#8b5cf6', third: '#fd7e14', sub: '#20c997' };
+        const lNames   = { fc: 'F/C', fb: 'F/B', rc: 'R/C', rb: 'R/B', third: '3RD', sub: 'Sub' };
+        const fontSize = Math.max(10, Math.round(H * 0.042));
+        const smFS     = Math.max(8,  Math.round(H * 0.034));
+        const barH     = Math.max(18, Math.round(H * 0.072));
+        const usableH  = H - fontSize - 20;
+        const spacing  = Math.floor(usableH / lines.length);
+        const startY   = fontSize + 14;
+        const panelX   = barZoneX + 8;
+        const labelW   = 36;
+        const pctColW  = Math.max(76, Math.round(fontSize * 6.2));
+        const barX0    = panelX + labelW;
+        const bw       = W - barX0 - pctColW - 6;
+
+        ctx.fillStyle = '#8896a8';
+        ctx.font = `${fontSize}px Poppins, sans-serif`;
+        ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        ctx.fillText('Per-Line Quality / Defect', panelX, 6);
+
+        lines.forEach((key, i) => {
+            const d = lineData[key]; if (!d) return;
+            const qr = Math.min(d.qualityRate || 0, 100);
+            const dr = Math.min(d.defectRate  || 0, 100);
+            const y  = startY + i * spacing + (spacing - barH) / 2;
+            const midY = y + barH / 2;
+
+            // Line label
+            ctx.fillStyle = lColors[key];
+            ctx.font = `bold ${fontSize}px Poppins, sans-serif`;
+            ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+            ctx.fillText(lNames[key], panelX, midY);
+
+            const halfBar = Math.round((barH - 2) / 2);
+            const qrY = y;
+            const drY = y + halfBar + 2;
+
+            // QR bar background
+            ctx.fillStyle = 'rgba(255,255,255,0.06)';
+            ctx.beginPath(); ctx.roundRect(barX0, qrY, bw, halfBar, 3); ctx.fill();
+
+            // QR bar fill
+            const qrColor = qr >= 95 ? PERCENTAGE_COLORS.good : qr >= 85 ? PERCENTAGE_COLORS.warning : PERCENTAGE_COLORS.critical;
+            ctx.fillStyle = qrColor;
+            ctx.globalAlpha = 0.85;
+            ctx.beginPath(); ctx.roundRect(barX0, qrY, bw * (qr / 100), halfBar, 3); ctx.fill();
+            ctx.globalAlpha = 1;
+
+            // DR bar background
+            ctx.fillStyle = 'rgba(255,255,255,0.06)';
+            ctx.beginPath(); ctx.roundRect(barX0, drY, bw, halfBar, 3); ctx.fill();
+
+            // DR bar fill (scale: 0–dMAX maps to full width)
+            const drBarColor = dr <= 1 ? PERCENTAGE_COLORS.good : dr <= 3 ? PERCENTAGE_COLORS.warning : PERCENTAGE_COLORS.critical;
+            ctx.fillStyle = drBarColor;
+            ctx.globalAlpha = 0.85;
+            ctx.beginPath(); ctx.roundRect(barX0, drY, bw * Math.min(dr / dMAX, 1), halfBar, 3); ctx.fill();
+            ctx.globalAlpha = 1;
+
+            // Right-side labels
+            ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#c8d4e0';
+            ctx.font = `${smFS}px Poppins, sans-serif`;
+            ctx.fillText('QR ' + qr.toFixed(1) + '%', W - 4, qrY + halfBar / 2);
+            ctx.fillStyle = drBarColor;
+            ctx.fillText('DR ' + dr.toFixed(2) + '%', W - 4, drY + halfBar / 2);
+        });
+    }
+}
 
 // ==================== Sidebar Collapse Toggle ====================
 (function () {
@@ -298,25 +663,60 @@ window.addEventListener('resize', () => {
     const footer      = document.querySelector('.dashboard-footer');
     if (!sidebar || !mainContent || !toggleBtn) return;
 
+    // Backdrop for mobile overlay
+    const backdrop = document.createElement('div');
+    backdrop.className = 'sidebar-backdrop';
+    document.body.appendChild(backdrop);
+
+    const isMobile = () => window.innerWidth < 768;
+
+    function redrawGauge() {
+        setTimeout(() => {
+            if (window._gaugeLastData) {
+                drawKPIGauge(window._gaugeLastData.overall, window._gaugeLastData.lines);
+            }
+        }, 260);
+    }
+
     function apply(collapsed) {
-        sidebar.classList.toggle('collapsed', collapsed);
-        mainContent.classList.toggle('sidebar-collapsed', collapsed);
-        if (footer) footer.style.left = collapsed ? '60px' : '220px';
+        if (isMobile()) {
+            // Mobile: slide sidebar in/out as overlay, main content always full-width
+            const open = !collapsed;
+            sidebar.classList.toggle('mobile-open', open);
+            backdrop.classList.toggle('active', open);
+            // reset any inline desktop styles
+            mainContent.style.marginLeft = '';
+            if (footer) footer.style.left = '';
+        } else {
+            sidebar.classList.remove('mobile-open');
+            backdrop.classList.remove('active');
+            sidebar.classList.toggle('collapsed', collapsed);
+            mainContent.classList.toggle('sidebar-collapsed', collapsed);
+            if (footer) footer.style.left = collapsed ? '60px' : '220px';
+        }
     }
 
     // Restore saved preference
     apply(localStorage.getItem('sidebarCollapsed') === '1');
 
     toggleBtn.addEventListener('click', () => {
-        const collapsed = !sidebar.classList.contains('collapsed');
-        apply(collapsed);
-        localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
-        // Redraw gauge after layout shift
-        setTimeout(() => {
-            if (window._gaugeLastData) {
-                drawKPIGauge(window._gaugeLastData.overall, window._gaugeLastData.lines);
-            }
-        }, 260);
+        if (isMobile()) {
+            const isOpen = sidebar.classList.contains('mobile-open');
+            apply(isOpen); // open → collapse (close)
+        } else {
+            const collapsed = !sidebar.classList.contains('collapsed');
+            apply(collapsed);
+            localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
+        }
+        redrawGauge();
+    });
+
+    // Close sidebar when tapping backdrop on mobile
+    backdrop.addEventListener('click', () => apply(true));
+
+    // Re-apply on resize (desktop ↔ mobile switch)
+    window.addEventListener('resize', () => {
+        apply(isMobile() ? true : localStorage.getItem('sidebarCollapsed') === '1');
     });
 })();
 
@@ -357,7 +757,7 @@ async function fetchQualityData() {
     const start_date = document.getElementById('quality_date_start').value;
     const end_date = document.getElementById('quality_date_end').value;
 
-    fetch(`api/get_defects_data.php?start_date=${start_date}&end_date=${end_date}`)
+    await fetch(`api/get_defects_data.php?start_date=${start_date}&end_date=${end_date}`)
     .then(response => {
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -370,7 +770,6 @@ async function fetchQualityData() {
             if (data.line_data.length === 0 && 
                 data.problem_data.length === 0 && 
                 data.model_data.length === 0) {
-                console.log('No data available for selected date range');
                 return;
             }
 
@@ -765,11 +1164,12 @@ async function updateQualityCards(data) {
             };
         });        
         // ดึงข้อมูลการผลิตตามวันที่ใน quality filter แทน
-        const start_date = document.getElementById('quality_date_start').value;
-        const end_date = document.getElementById('quality_date_end').value;
+        const today = new Date().toISOString().slice(0, 10);
+        const start_date = document.getElementById('quality_date_start').value || today;
+        const end_date = document.getElementById('quality_date_end').value || today;
 
         // สร้าง URL สำหรับดึงข้อมูลการผลิตตามวันที่ quality
-        const productionResponse = await fetch(`${API_BASE}?type=summary&start_date=${start_date}&end_date=${end_date}&display_type=pieces`);
+        const productionResponse = await fetch(`${API_BASE}?type=summary&start_date=${encodeURIComponent(start_date)}&end_date=${encodeURIComponent(end_date)}&display_type=pieces`);
         const productionResult = await productionResponse.json();
         const summaryData = productionResult.success ? productionResult.data : {};
 
@@ -787,8 +1187,6 @@ async function updateQualityCards(data) {
                 // ดึงข้อมูลจาก processData หรือใส่ค่า default เป็น 0
                 const lineData = processData[line] || { total_qty: 0 };
                 const productionData = summaryData[line === '3rd' ? 'third' : line] || { total_qty: 0 };
-                // console.log('check data:', summaryData);
-                
                 // คำนวณเปอร์เซ็นต์ของเสีย
                 const defectPercentage = productionData.total_qty > 0 
                     ? ((lineData.total_qty / productionData.total_qty) * 100).toFixed(2)
@@ -797,9 +1195,6 @@ async function updateQualityCards(data) {
                 // อัพเดตจำนวนชิ้น
                 element.textContent = lineData.total_qty;
 
-                // แสดงข้อมูลเพิ่มเติมใน console สำหรับ debug
-                console.log(`Line ${line}: Defects=${lineData.total_qty}, Production=${productionData.total_qty}, Percentage=${defectPercentage}%`);
-                                
                 // อัพเดต label
                 if (qualityElement) {
                     qualityElement.textContent = `${defectPercentage}%`;
@@ -827,9 +1222,31 @@ async function updateQualityCards(data) {
                 }, 500);
             }
         });
-        
-        console.log('Quality cards updated successfully');
-        
+
+        // คำนวณ quality rate / defect rate per line แล้ว draw gauge
+        const lineKeys = ['fc', 'fb', 'rc', 'rb', 'third', 'sub'];
+        const defectKeyMap = { fc: 'fc', fb: 'fb', rc: 'rc', rb: 'rb', third: '3rd', sub: 'sub' };
+        let totalProd = 0, totalDefect = 0;
+        const qualityLineData = {};
+        lineKeys.forEach(key => {
+            const prod   = Math.max(0, (summaryData[key]  || {}).total_qty || 0);
+            const defect = Math.max(0, Math.min(prod, (processData[defectKeyMap[key]] || {}).total_qty || 0));
+            totalProd   += prod;
+            totalDefect += defect;
+            qualityLineData[key] = {
+                qualityRate: prod > 0 ? Math.min(100, Math.max(0, parseFloat(((prod - defect) / prod * 100).toFixed(2)))) : 100,
+                defectRate:  prod > 0 ? Math.min(100, Math.max(0, parseFloat((defect / prod * 100).toFixed(2)))) : 0,
+            };
+        });
+        const overallQuality = totalProd > 0
+            ? Math.min(100, Math.max(0, parseFloat(((totalProd - totalDefect) / totalProd * 100).toFixed(2))))
+            : 100;
+        const overallDefect = totalProd > 0
+            ? Math.min(10, Math.max(0, parseFloat((totalDefect / totalProd * 100).toFixed(2))))
+            : 0;
+        window._qualityGaugeLastData = { overall: overallQuality, defect: overallDefect, lines: qualityLineData };
+        drawQualityKPIGauge(overallQuality, overallDefect, qualityLineData);
+
     } catch (error) {
         console.error('Error updating quality cards:', error);
     }
@@ -852,17 +1269,11 @@ function createParetoChart(canvasId, data, labels, title) {
     // const ctx = document.getElementById(canvasId).getContext('2d');
     const ctx = canvas.getContext('2d');
     
-    // ✅ Debug ข้อมูลก่อนเรียง
-    console.log('Original data:', data);
-    console.log('Original labels:', labels);
-
     // ✅ แปลง data เป็น number และกรองข้อมูลที่ = 0 ออก
     const filteredData = data.map((value, index) => ({
         value: parseFloat(value) || 0,  // ✅ แปลงเป็น number
         label: labels[index] || 'Unknown'
     })).filter(item => item.value > 0); // กรองเฉพาะค่าที่ > 0
-    
-    console.log('Filtered data:', filteredData);
     
     if (filteredData.length === 0) {
         console.warn('No data after filtering zeros');
@@ -875,15 +1286,10 @@ function createParetoChart(canvasId, data, labels, title) {
     const sortedData = combinedData.map(item => item.value);
     const sortedLabels = combinedData.map(item => item.label);
 
-    // ✅ Debug ข้อมูลหลังเรียง
-    console.log('Sorted data:', sortedData);
-    console.log('Sorted labels:', sortedLabels);
-
     // คำนวณค่าต่างๆ
     const total = sortedData.reduce((a, b) => a + b, 0);
-    console.log('Total:', total);
 
-     // ✅ ตรวจสอบ total
+    // ✅ ตรวจสอบ total
     if (total === 0) {
         console.warn('Total is zero, cannot calculate percentages');
         return;
@@ -893,11 +1299,8 @@ function createParetoChart(canvasId, data, labels, title) {
     const individualPercentage = sortedData.map(value => 
         Number(((value / total) * 100).toFixed(1))
     );
-    console.log('Individual percentages:', individualPercentage);
 
-    // ✅ ตรวจสอบผลรวม percentage ต้องเป็น 100
-    const percentageSum = individualPercentage.reduce((a, b) => a + b, 0);
-    console.log('Sum of individual percentages:', percentageSum);
+    // คำนวณเปอร์เซ็นต์สะสม
 
     // คำนวณเปอร์เซ็นต์สะสม
     let cumulative = 0;
@@ -1149,7 +1552,6 @@ async function fetchCrossTabData() {
             // แสดงตาราง Cross-Model-Detail
             updateCrossModelTable(data.model_data);
             
-            console.log('Cross-tab data loaded successfully');
         } else {
             throw new Error(data.message || 'Unknown error occurred');
         }
@@ -1361,6 +1763,13 @@ function updatePerformanceKPIs(kpis) {
     updateKPIColors('qualityRate', kpis.quality_rate);
     updateKPIColors('productivityRate', kpis.productivity_rate);
     updateKPIColors('defectRate', kpis.defect_rate, true); // reverse for defect rate
+
+    // Redraw combined KPI+Productivity gauge in Production tab
+    const rate = parseFloat(kpis.productivity_rate) || 0;
+    window._productivityLastRate = rate;
+    if (window._gaugeLastData) {
+        drawKPIGauge(window._gaugeLastData.overall, window._gaugeLastData.lines);
+    }
 }
 
 // 3. สร้างกราฟแสดงประสิทธิภาพของไลน์
@@ -1641,8 +2050,6 @@ async function loadProductData() {
         // Load summary data
         await updateSummary();
         await loadModelSummary();
-
-        console.log('Report data loaded successfully');
         
     } catch (error) {
         console.error('Error loading report data:', error);
@@ -1668,12 +2075,9 @@ async function loadQualityData() {
             // อัปเดต Quality Cards ก่อน
             await updateQualityCards(data);
             await fetchCrossTabData();
-
-            console.log('Quality data loaded successfully',data);
         } else {
             console.error('API Error:', data.message);
         }
-        console.log('Report data loaded successfully');
         
     } catch (error) {
         console.error('Error loading report data:', error);
@@ -1687,7 +2091,6 @@ function startRealTimeUpdate() {
     if (checkbox.checked) {
         updateInterval = setInterval(async () => {
             await loadProductData();
-            console.log('Real-time update completed');
         }, 30000); // Update every 30 seconds
     } else {
         if (updateInterval) {
@@ -1848,8 +2251,6 @@ function toggleDisplayType() {
     
     // Load data with new display type
     loadProductData();
-    
-    console.log('Display type changed to:', currentDisplayType);
 }
 
 document.querySelectorAll('input[name="displayType"]').forEach(radio => {
@@ -1909,18 +2310,21 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async function() {
-    // Set default dates to today
+    // Set default dates: start = 1st of current month, end = today
     const today = new Date().toISOString().split('T')[0];
+    const _n = new Date();
+    const firstOfMonth = `${_n.getFullYear()}-${String(_n.getMonth() + 1).padStart(2, '0')}-01`;
+
     document.getElementById('production_date_start').value = today;
     // document.getElementById('production_date_end').value = today;
 
-    document.getElementById('quality_date_start').value = today;
+    document.getElementById('quality_date_start').value = firstOfMonth;
     document.getElementById('quality_date_end').value = today;
 
-    document.getElementById('performance_date_start').value = today;
+    document.getElementById('performance_date_start').value = firstOfMonth;
     document.getElementById('performance_date_end').value = today;
 
-    document.getElementById('report_date_start').value = today;
+    document.getElementById('report_date_start').value = firstOfMonth;
     document.getElementById('report_date_end').value = today;
 
     // Initialize export buttons
@@ -1933,7 +2337,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     addChartTooltips();
     
     // Load initial data
+    window._productivityLastRate = 0;   // ensure productivity gauge shows immediately
     await loadProductData();
+    loadPerformanceData();              // fetch productivity rate in background
     // await loadQualityData();
 
     // Start real-time updates if enabled
@@ -1954,7 +2360,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         loadPerformanceData();
     });
 
-    console.log('Sewing report system initialized');
 });
 
 // ==================== AI Chat System ====================
