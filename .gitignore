@@ -48,3 +48,6 @@ npm-debug.log*
 
 # AI
 .codex
+.env
+.env.*
+!.env.example
