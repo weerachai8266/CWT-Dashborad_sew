@@ -88,7 +88,7 @@ function drawKPIGauge(overallPct, lineData) {
     // R must leave room above arc: top label sits at cy - (R + arcW/2 + 20) >= 8px
     // Solve: R <= (cy - 28) / 1.10  →  use cy * 0.72 as safe upper bound
     const R  = isMobile ? Math.min(cx - 18, cy * 0.72) : Math.min(cx - 20, cy * 0.72);
-    const arcW = Math.round(R * 0.18);
+    const arcW = Math.round(R * 0.40);  // arc thickness proportional to radius  แถบสีหนาขึ้น
     const MAX = 120;
 
     // angle: 0%→left(π), 100%→right(2π)
@@ -289,6 +289,36 @@ window.addEventListener('resize', () => {
         drawKPIGauge(window._gaugeLastData.overall, window._gaugeLastData.lines);
     }
 });
+
+// ==================== Sidebar Collapse Toggle ====================
+(function () {
+    const sidebar     = document.getElementById('mainSidebar');
+    const mainContent = document.querySelector('.main-content');
+    const toggleBtn   = document.getElementById('sidebarToggle');
+    const footer      = document.querySelector('.dashboard-footer');
+    if (!sidebar || !mainContent || !toggleBtn) return;
+
+    function apply(collapsed) {
+        sidebar.classList.toggle('collapsed', collapsed);
+        mainContent.classList.toggle('sidebar-collapsed', collapsed);
+        if (footer) footer.style.left = collapsed ? '60px' : '220px';
+    }
+
+    // Restore saved preference
+    apply(localStorage.getItem('sidebarCollapsed') === '1');
+
+    toggleBtn.addEventListener('click', () => {
+        const collapsed = !sidebar.classList.contains('collapsed');
+        apply(collapsed);
+        localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
+        // Redraw gauge after layout shift
+        setTimeout(() => {
+            if (window._gaugeLastData) {
+                drawKPIGauge(window._gaugeLastData.overall, window._gaugeLastData.lines);
+            }
+        }, 260);
+    });
+})();
 
 // 1. API Functions production
 async function fetchReportData(type = 'hourly') {

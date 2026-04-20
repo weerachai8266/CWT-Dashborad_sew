@@ -58,16 +58,21 @@
     <!-- Main Container -->
     <div class="d-flex">  
         <!-- Sidebar -->
-        <nav class="sidebar">
-            <ul class="nav flex-column pt-3">
+        <nav class="sidebar" id="mainSidebar">
+            <!-- Sidebar toggle at top -->
+            <button class="sidebar-toggle-btn" id="sidebarToggle" title="ยุบ/ขยาย เมนู" aria-label="Toggle sidebar">
+                <i class="fas fa-bars"></i>
+                <span class="nav-text ms-2">ซ่อนเมนู</span>
+            </button>
+            <ul class="nav flex-column">
                 <li class="nav-item">
-                    <a class="nav-link active" id="production-tab" data-bs-toggle="tab" href="#production" role="tab">📊 Production</a>
+                    <a class="nav-link active" id="production-tab" data-bs-toggle="tab" href="#production" role="tab" title="Production">📊 <span class="nav-text">Production</span></a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" id="quality-tab" data-bs-toggle="tab" href="#quality" role="tab">✅ Quality</a>
+                    <a class="nav-link" id="quality-tab" data-bs-toggle="tab" href="#quality" role="tab" title="Quality">✅ <span class="nav-text">Quality</span></a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" id="performance-tab" data-bs-toggle="tab" href="#performance" role="tab">📈 Performance</a>
+                    <a class="nav-link" id="performance-tab" data-bs-toggle="tab" href="#performance" role="tab" title="Performance">📈 <span class="nav-text">Performance</span></a>
                 </li>
 
                 <!-- <li class="nav-item">
@@ -170,8 +175,8 @@
                         </div>
                         <div class="text-muted mt-2">กำลังโหลดข้อมูล...</div>
                     </div> 
-                    <!-- End fo Loading Spinner -->
-
+                    <!-- End of Loading Spinner -->
+                     
                     <!-- Summary Statistics -->
                     <!-- เดี๋ยวกลับมาแก้ฟังก์ชั่นนี้ -->
                     <div class="row mt-3">
@@ -249,7 +254,7 @@
                                 </div>
                             </div>
                         </div>
-                    </div>  <!-- End of KPI Gauge -->
+                    </div>  <!-- End of KPI Gauge -->                    
 
                     <!-- Charts Section -->
                     <div class="row">
@@ -737,6 +742,24 @@
                 </div>  <!-- End of Report Data Tab -->
 
             </div>  <!-- End of Tab Content -->
+
+            <!-- Footer -->
+            <footer class="dashboard-footer">
+                <div class="footer-inner">
+                    <div class="footer-left">
+                        <!-- <img src="img/logo.png" alt="CWT Logo" style="height:28px;opacity:0.7;"> -->
+                        <span class="footer-brand">Chaiwattana Manufacturing Solutions</span>
+                    </div>
+                    <div class="footer-center">
+                        <span>Production Dashboard &copy; <span id="footerYear"></span></span>
+                    </div>
+                    <div class="footer-right">
+                        <span class="footer-version">v2.0</span>
+                        <span class="footer-divider">|</span>
+                        <span>Powered by weerachai</span>
+                    </div>
+                </div>
+            </footer>
         </div> <!-- End of Main Content -->
 
     </div>  <!-- End of Container Fluid -->
@@ -744,9 +767,9 @@
     <!-- AI Chat Widget -->
     <div id="ai-chat-widget" class="ai-chat-widget">
         <!-- Chat Toggle Button -->
-        <button id="chat-toggle-btn" class="chat-toggle-btn" title="AI Assistant">
+        <!-- <button id="chat-toggle-btn" class="chat-toggle-btn" title="AI Assistant">
             <i class="fas fa-robot"></i>
-        </button>
+        </button> -->
 
         <!-- Chat Container -->
         <div id="chat-container" class="chat-container" style="display: none;">
@@ -797,6 +820,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="script/script.js"></script>
+    <script>document.getElementById('footerYear').textContent = new Date().getFullYear();</script>
     
 </body>
 </html>
