@@ -1,3 +1,10 @@
+// ===== Chart.js Dark Theme Defaults =====
+document.addEventListener('DOMContentLoaded', function() {
+    Chart.defaults.color = '#8896a8';           // axis tick / legend text
+    Chart.defaults.borderColor = 'rgba(255,255,255,0.07)'; // grid lines
+    Chart.defaults.plugins.legend.labels.color = '#8896a8';
+});
+
 // Global variables
 let charts = {};
 let currentData = {};
@@ -29,10 +36,10 @@ const LINE_NAMES = {
 
 // Color coding for percentage
 const PERCENTAGE_COLORS = {
-    critical: '#dc3545',    // 0-79%
-    warning: '#ffc107',     // 80-94%
-    good: '#28a745',        // 95-104%
-    excellent: '#007bff'    // 105%+
+    critical: '#dc3545',    // 0-84%
+    warning: '#ffc107',     // 85-94%
+    good: '#28a745',        // 95-100%
+    excellent: '#007bff'    // 101%+
 };
 // Get emoji based on percentage
 function getStatusEmoji(percentage) {
@@ -58,6 +65,230 @@ function getPercentageClass(percentage) {
     return 'percentage-critical';
 }
 
+// ==================== KPI Speedometer Gauge ====================
+function drawKPIGauge(overallPct, lineData) {
+    const canvas = document.getElementById('kpiGaugeCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+
+    // Responsive canvas sizing — cap height so gauge stays compact
+    const cssW = canvas.parentElement.clientWidth || 480;
+    const isMobile = cssW < 500;
+    const rawH  = isMobile ? Math.round(cssW * 0.72) : Math.round(cssW * 0.34);
+    const cssH  = Math.min(rawH, isMobile ? 320 : 280);   // max height cap
+    canvas.style.height = cssH + 'px';
+    canvas.width  = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    ctx.scale(dpr, dpr);
+
+    const W = cssW, H = cssH;
+    const cx = isMobile ? W / 2 : W * 0.36;
+    const cy = isMobile ? H * 0.80 : H * 0.88;
+    // R must leave room above arc: top label sits at cy - (R + arcW/2 + 20) >= 8px
+    // Solve: R <= (cy - 28) / 1.10  →  use cy * 0.72 as safe upper bound
+    const R  = isMobile ? Math.min(cx - 18, cy * 0.72) : Math.min(cx - 20, cy * 0.72);
+    const arcW = Math.round(R * 0.18);
+    const MAX = 120;
+
+    // angle: 0%→left(π), 100%→right(2π)
+    const toAngle = v => Math.PI * (1 + v / MAX);
+
+    // ── Background track ──────────────────────────────────────
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, Math.PI, 0, false);
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.lineWidth = arcW + 8;
+    ctx.stroke();
+
+    // ── Colored arc segments (สีตาม PERCENTAGE_COLORS) ────────
+    const segments = [
+        { from: 0,   to: 84,  color: PERCENTAGE_COLORS.critical  },  // 0–84%
+        { from: 84,  to: 95,  color: PERCENTAGE_COLORS.warning   },  // 85–94%
+        { from: 95,  to: 100, color: PERCENTAGE_COLORS.good      },  // 95–100%
+        { from: 100, to: 120, color: PERCENTAGE_COLORS.excellent },  // 101%+
+    ];
+    segments.forEach(s => {
+        ctx.beginPath();
+        ctx.arc(cx, cy, R, toAngle(s.from), toAngle(s.to), false);
+        ctx.strokeStyle = s.color;
+        ctx.lineWidth = arcW;
+        ctx.lineCap = 'butt';
+        ctx.stroke();
+    });
+
+    // ── Tick marks & value labels (outside arc only) ───────────
+    const ticks = [0, 84, 95, 100, 120];   // zone boundaries
+    const tickFontSize = Math.max(9, Math.round(R * 0.08));
+    ticks.forEach(v => {
+        const a = toAngle(v);
+        const cos = Math.cos(a), sin = Math.sin(a);
+        // short tick line spanning only the outer edge
+        const iR = R + arcW / 2 + 2, oR = R + arcW / 2 + 9;
+        ctx.beginPath();
+        ctx.moveTo(cx + iR * cos, cy + iR * sin);
+        ctx.lineTo(cx + oR * cos, cy + oR * sin);
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        const lR = R + arcW / 2 + 20;
+        ctx.fillStyle = '#6b7a8d';
+        ctx.font = `${tickFontSize}px Poppins, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(v + '%', cx + lR * cos, cy + lR * sin);
+    });
+
+    // ── Animated needle ───────────────────────────────────────
+    const clamped = Math.min(Math.max(overallPct, 0), MAX);
+    const needleA = toAngle(clamped);
+    const nLen  = R - arcW / 2 - 6;
+    const nTail = R * 0.14;
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.55)';
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.moveTo(cx - nTail * Math.cos(needleA), cy - nTail * Math.sin(needleA));
+    ctx.lineTo(cx + nLen  * Math.cos(needleA), cy + nLen  * Math.sin(needleA));
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // needle hub
+    ctx.beginPath();
+    ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+    ctx.fillStyle = '#2a2f3a';
+    ctx.fill();
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.restore();
+
+    // ── Center value & status (สีตาม PERCENTAGE_COLORS) ────────
+    const statusColor = clamped >= 100 ? PERCENTAGE_COLORS.excellent
+                      : clamped >= 95  ? PERCENTAGE_COLORS.good
+                      : clamped >= 85  ? PERCENTAGE_COLORS.warning
+                      :                  PERCENTAGE_COLORS.critical;
+    const statusText  = clamped >= 100 ? 'Excellent' : clamped >= 95 ? 'Good' : clamped >= 85 ? 'Warning' : 'Critical';
+    const valueFontSize = Math.max(20, Math.round(R * 0.20));
+    const labelFontSize = Math.max(10, Math.round(R * 0.085));
+
+    // big % sits well above the hub
+    ctx.textAlign = 'center';
+    ctx.fillStyle = statusColor;
+    ctx.font = `bold ${valueFontSize}px Poppins, sans-serif`;
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(overallPct.toFixed(1) + '%', cx, cy - R * 0.28);
+
+    // small label below the hub
+    ctx.fillStyle = '#8896a8';
+    ctx.font = `${labelFontSize}px Poppins, sans-serif`;
+    ctx.textBaseline = 'top';
+    ctx.fillText('Overall KPI', cx, cy + 16);
+
+    // ── Update badge ──────────────────────────────────────────
+    const badge = document.getElementById('kpiGaugeLabel');
+    if (badge) {
+        badge.textContent = overallPct.toFixed(1) + '% — ' + statusText;
+        badge.className = 'badge fs-6 px-3 py-1';
+        badge.className += clamped >= 100 ? ' bg-primary' : clamped >= 95 ? ' bg-success' : clamped >= 85 ? ' bg-warning text-dark' : ' bg-danger';
+    }
+
+    // ── Per-line mini progress bars (right panel on desktop, below on mobile) ──
+    if (!lineData) return;
+    const lines = ['fc', 'fb', 'rc', 'rb', 'third', 'sub'];
+    const lColors = { fc: '#28a745', fb: '#ffc107', rc: '#dc3545', rb: '#8b5cf6', third: '#fd7e14', sub: '#20c997' };
+    const lNames  = { fc: 'F/C', fb: 'F/B', rc: 'R/C', rb: 'R/B', third: '3RD', sub: 'Sub' };
+
+    if (isMobile) {
+        // Row of mini bars below the gauge arc
+        const barH   = Math.max(7, Math.round(R * 0.07));
+        const startX = W * 0.04;
+        const rowW   = W * 0.92;
+        const itemW  = rowW / lines.length;
+        const barY   = cy + 16;
+
+        lines.forEach((key, i) => {
+            const d = lineData[key];
+            if (!d) return;
+            const pct = Math.min(d.percentage || 0, MAX);
+            const x = startX + i * itemW + itemW * 0.08;
+            const bw = itemW * 0.84;
+
+            ctx.fillStyle = 'rgba(255,255,255,0.06)';
+            ctx.beginPath(); ctx.roundRect(x, barY, bw, barH, 3); ctx.fill();
+            ctx.fillStyle = lColors[key];
+            ctx.beginPath(); ctx.roundRect(x, barY, bw * (pct / MAX), barH, 3); ctx.fill();
+
+            ctx.fillStyle = lColors[key];
+            ctx.font = `bold ${Math.max(9, Math.round(R * 0.08))}px Poppins, sans-serif`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+            ctx.fillText(lNames[key], x + bw / 2, barY + barH + 3);
+
+            ctx.fillStyle = '#8896a8';
+            ctx.font = `${Math.max(8, Math.round(R * 0.07))}px Poppins, sans-serif`;
+            ctx.fillText((d.percentage || 0) + '%', x + bw / 2, barY + barH + 15);
+        });
+    } else {
+        // Vertical list of bars on the right side
+        const panelX  = W * 0.64;
+        const panelW  = W * 0.33;
+        const barH    = Math.max(8, Math.round(H * 0.048));
+        const fontSize = Math.max(10, Math.round(H * 0.044));
+        const titleH  = fontSize + 6;
+        const usableH = H - titleH - 16;                 // space below title
+        const spacing = Math.floor(usableH / lines.length);
+        const startY  = titleH + 8;                      // just below title
+
+        lines.forEach((key, i) => {
+            const d = lineData[key];
+            if (!d) return;
+            const pct = Math.min(d.percentage || 0, MAX);
+            const y = startY + i * spacing + (spacing - barH) / 2;
+
+            // Label
+            ctx.fillStyle = lColors[key];
+            ctx.font = `bold ${fontSize}px Poppins, sans-serif`;
+            ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+            ctx.fillText(lNames[key], panelX, y + barH / 2);
+
+            // Bar background
+            const barX = panelX + 36;
+            const bw   = panelW - 58;
+            ctx.fillStyle = 'rgba(255,255,255,0.06)';
+            ctx.beginPath(); ctx.roundRect(barX, y, bw, barH, 4); ctx.fill();
+
+            // Bar fill
+            ctx.fillStyle = lColors[key];
+            ctx.globalAlpha = 0.85;
+            ctx.beginPath(); ctx.roundRect(barX, y, bw * (pct / MAX), barH, 4); ctx.fill();
+            ctx.globalAlpha = 1;
+
+            // % text
+            ctx.fillStyle = '#c8d4e0';
+            ctx.font = `${fontSize}px Poppins, sans-serif`;
+            ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+            ctx.fillText((d.percentage || 0) + '%', barX + bw + 5, y + barH / 2);
+        });
+
+        // Panel title
+        ctx.fillStyle = '#8896a8';
+        ctx.font = `${fontSize}px Poppins, sans-serif`;
+        ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        ctx.fillText('Per-Line Achievement', panelX, 6);
+    }
+}
+
+// Redraw gauge on window resize
+window.addEventListener('resize', () => {
+    if (window._gaugeLastData) {
+        drawKPIGauge(window._gaugeLastData.overall, window._gaugeLastData.lines);
+    }
+});
 
 // 1. API Functions production
 async function fetchReportData(type = 'hourly') {
@@ -181,7 +412,7 @@ const chartConfig = {
             datalabels: {
                 anchor: 'start',  // ตำแหน่งของ label จะอยู่ที่ปลายแท่ง
                 align: 'top',   // ตำแหน่งของ label จะอยู่ด้านบนของแท่ง
-                color: '#333',  // สีของ label
+                color: '#c8d4e0',  // สีของ label
                 font: {
                     size: 12,
                     weight: 'bold'
@@ -403,6 +634,17 @@ async function updateSummary() {
                 }, 200);
             }
         });
+
+        // ── Draw KPI Gauge ────────────────────────────────────────
+        const lineKeys = ['fc', 'fb', 'rc', 'rb', 'third', 'sub'];
+        const validPcts = lineKeys
+            .filter(k => summaryData[k] && summaryData[k].percentage != null)
+            .map(k => summaryData[k].percentage);
+        const overallPct = validPcts.length
+            ? Math.round((validPcts.reduce((a, b) => a + b, 0) / validPcts.length) * 10) / 10
+            : 0;
+        window._gaugeLastData = { overall: overallPct, lines: summaryData };
+        drawKPIGauge(overallPct, summaryData);
         
     } catch (error) {
         console.error('Error updating summary:', error);
@@ -452,28 +694,30 @@ function updateModelSummaryTable(data) {
   
   // สร้างแถวข้อมูลสำหรับแต่ละโมเดล
   data.models.forEach((model, index) => {
-    // const rowClass = index % 2 === 0 ? '' : 'hover:bg-gray-50';
+    const rowClass = index % 2 === 0 ? 'qt-row-even' : 'qt-row-odd';
+    const fmt = (v) => v > 0 ? `<span class="qt-num">${v.toLocaleString()}</span>` : '<span class="qt-dash">-</span>';
     
-    html += `<tr class="hover:bg-gray-50">
-      <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-left">${model.name}</td>
-      <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${model.fc > 0 ? model.fc.toLocaleString() : '-'}</td>
-      <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${model.fb > 0 ? model.fb.toLocaleString() : '-'}</td>
-      <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${model.rc > 0 ? model.rc.toLocaleString() : '-'}</td>
-      <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${model.rb > 0 ? model.rb.toLocaleString() : '-'}</td>
-      <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${model['3rd'] > 0 ? model['3rd'].toLocaleString() : '-'}</td>
-      <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-900 text-center">${model.sub > 0 ? model.sub.toLocaleString() : '-'}</td>
+    html += `<tr class="${rowClass}">
+      <td class="px-6 py-2 whitespace-nowrap text-sm text-left qt-label">${model.name}</td>
+      <td class="px-6 py-2 whitespace-nowrap text-sm text-center qt-value">${fmt(model.fc)}</td>
+      <td class="px-6 py-2 whitespace-nowrap text-sm text-center qt-value">${fmt(model.fb)}</td>
+      <td class="px-6 py-2 whitespace-nowrap text-sm text-center qt-value">${fmt(model.rc)}</td>
+      <td class="px-6 py-2 whitespace-nowrap text-sm text-center qt-value">${fmt(model.rb)}</td>
+      <td class="px-6 py-2 whitespace-nowrap text-sm text-center qt-value">${fmt(model['3rd'])}</td>
+      <td class="px-6 py-2 whitespace-nowrap text-sm text-center qt-value">${fmt(model.sub)}</td>
     </tr>`;
   });
   
   // เพิ่มแถวสรุป
-  html += `<tr>
-    <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-gray-900 text-center">รวมทั้งหมด</td>
-    <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-gray-900 text-center">${data.totals.fc > 0 ? data.totals.fc.toLocaleString() : '-'}</td>
-    <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-gray-900 text-center">${data.totals.fb > 0 ? data.totals.fb.toLocaleString() : '-'}</td>
-    <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-gray-900 text-center">${data.totals.rc > 0 ? data.totals.rc.toLocaleString() : '-'}</td>
-    <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-gray-900 text-center">${data.totals.rb > 0 ? data.totals.rb.toLocaleString() : '-'}</td>
-    <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-gray-900 text-center">${data.totals['3rd'] > 0 ? data.totals['3rd'].toLocaleString() : '-'}</td>
-    <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-gray-900 text-center">${data.totals.sub > 0 ? data.totals.sub.toLocaleString() : '-'}</td>
+  const fmtB = (v) => v > 0 ? v.toLocaleString() : '-';
+  html += `<tr class="qt-summary">
+    <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-left">รวมทั้งหมด</td>
+    <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-center">${fmtB(data.totals.fc)}</td>
+    <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-center">${fmtB(data.totals.fb)}</td>
+    <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-center">${fmtB(data.totals.rc)}</td>
+    <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-center">${fmtB(data.totals.rb)}</td>
+    <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-center">${fmtB(data.totals['3rd'])}</td>
+    <td class="px-6 py-2 whitespace-nowrap text-sm font-bold text-center">${fmtB(data.totals.sub)}</td>
   </tr>`;
   
   tbody.innerHTML = html;
@@ -671,7 +915,7 @@ function createParetoChart(canvasId, data, labels, title) {
                 datalabels: {
                     anchor: 'start',
                     align: 'top',                    
-                    color: '#333',
+                    color: '#c8d4e0',
                     formatter: function(value, context) {
                         // ตรวจสอบว่าเป็นข้อมูลจาก dataset ไหน
                         if (context.datasetIndex === 0) {
@@ -797,7 +1041,7 @@ function createTimelineChart(data) {
                 datalabels: {
                     anchor: 'start',
                     align: 'top',                    
-                    color: '#333',
+                    color: '#c8d4e0',
                     formatter: function(value) {
                         return value + ' ชิ้น';
                     },
@@ -926,29 +1170,29 @@ function updateCrossProcessTable(data) {
     
     // สร้างแถวข้อมูล
     data.details.forEach((detail, index) => {
-        const rowClass = index % 2 === 0 ? '' : 'bg-gray-50';
+        const rowClass = index % 2 === 0 ? 'qt-row-even' : 'qt-row-odd';
         let rowTotal = 0;
         
         tbody += `<tr class="${rowClass}">
-            <td class="px-6 py-2 text-sm text-left font-medium">${detail}</td>`;
+            <td class="px-6 py-2 text-sm text-left font-medium qt-label">${detail}</td>`;
             
         // แสดงข้อมูลแต่ละ process
         data.processes.forEach(process => {
             const value = data.data[detail][process] || 0;
             rowTotal += value;
-            tbody += `<td class="px-6 py-2 text-sm text-center">${value > 0 ? value : '-'}</td>`;
+            tbody += `<td class="px-6 py-2 text-sm text-center qt-value">${value > 0 ? `<span class="qt-num">${value}</span>` : '<span class="qt-dash">-</span>'}</td>`;
         });
         
         // แสดงผลรวมและเปอร์เซ็นต์
         const percentage = totalAll > 0 ? ((rowTotal / totalAll) * 100).toFixed(1) : '0.0';
         tbody += `
-            <td class="px-6 py-2 text-sm text-center font-bold">${rowTotal}</td>
-            <td class="px-6 py-2 text-sm text-center">${percentage}%</td>
+            <td class="px-6 py-2 text-sm text-center qt-total">${rowTotal}</td>
+            <td class="px-6 py-2 text-sm text-center qt-pct">${percentage}%</td>
         </tr>`;
     });
     
     // เพิ่มแถวสรุป
-    tbody += '<tr class="bg-blue-50"><td class="px-6 py-2 text-sm font-bold">รวมเสีย(ชิ้น)</td>';
+    tbody += '<tr class="qt-summary"><td class="px-6 py-2 text-sm font-bold">รวมเสีย(ชิ้น)</td>';
     
     // คำนวณผลรวมแต่ละคอลัมน์
     const columnTotals = {};
@@ -1009,29 +1253,29 @@ function updateCrossModelTable(data) {
     
     // สร้างแถวข้อมูล
     data.details.forEach((detail, index) => {
-        const rowClass = index % 2 === 0 ? '' : 'bg-gray-50';
+        const rowClass = index % 2 === 0 ? 'qt-row-even' : 'qt-row-odd';
         let rowTotal = 0;
         
         tbody += `<tr class="${rowClass}">
-            <td class="px-6 py-2 text-sm text-left font-medium">${detail}</td>`;
+            <td class="px-6 py-2 text-sm text-left font-medium qt-label">${detail}</td>`;
             
         // แสดงข้อมูลแต่ละ model
         data.models.forEach(model => {
             const value = data.data[detail][model] || 0;
             rowTotal += value;
-            tbody += `<td class="px-6 py-2 text-sm text-center">${value > 0 ? value : '-'}</td>`;
+            tbody += `<td class="px-6 py-2 text-sm text-center qt-value">${value > 0 ? `<span class="qt-num">${value}</span>` : '<span class="qt-dash">-</span>'}</td>`;
         });
         
         // แสดงผลรวมและเปอร์เซ็นต์
         const percentage = totalAll > 0 ? ((rowTotal / totalAll) * 100).toFixed(1) : '0.0';
         tbody += `
-            <td class="px-6 py-2 text-sm text-center font-bold">${rowTotal}</td>
-            <td class="px-6 py-2 text-sm text-center">${percentage}%</td>
+            <td class="px-6 py-2 text-sm text-center qt-total">${rowTotal}</td>
+            <td class="px-6 py-2 text-sm text-center qt-pct">${percentage}%</td>
         </tr>`;
     });
     
     // เพิ่มแถวสรุป
-    tbody += '<tr class="bg-blue-50"><td class="px-6 py-2 text-sm font-bold">รวมเสีย(ชิ้น)</td>';
+    tbody += '<tr class="qt-summary"><td class="px-6 py-2 text-sm font-bold">รวมเสีย(ชิ้น)</td>';
     
     // คำนวณผลรวมแต่ละคอลัมน์
     const columnTotals = {};
@@ -1157,7 +1401,7 @@ function createLinePerformanceChart(data) {
             scales: {
                 y: {
                     beginAtZero: true,
-                    title: { display: true, text: 'Efficiency (%)' }
+                    title: { display: true, text: 'Efficiency (%)', color: '#8896a8' }
                 }
             }
         }
@@ -1212,7 +1456,7 @@ function createTargetVsActualChart(data) {
             scales: {
                 y: {
                     beginAtZero: true,
-                    title: { display: true, text: 'Quantity (pieces)' }
+                    title: { display: true, text: 'Quantity (pieces)', color: '#8896a8' }
                 }
             }
         }
@@ -1292,12 +1536,13 @@ function createEfficiencyTrendChart(data) {
                 y: {
                     beginAtZero: true,
                     max: 120,
-                    title: { display: true, text: 'Efficiency (%)' }
+                    title: { display: true, text: 'Efficiency (%)', color: '#8896a8' }
                 }
             }
         }
     });
 }
+
 // 3. สร้าง Quality Performance Chart (Donut Chart)
 function createQualityPerformanceChart(kpis) {
     const canvas = document.getElementById('qualityPerformanceChart');

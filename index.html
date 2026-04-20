@@ -32,7 +32,7 @@
 </head>
 <body>
     <!-- Header Navbar -->
-    <nav class="navbar navbar-expand-lg shadow-sm bg-white border-bottom fixed-top px-3">
+    <nav class="navbar navbar-expand-lg fixed-top px-3">
         <div class="container-fluid">
             <div class="d-flex align-items-center">
                 <img src="img/logo.png" alt="CWT Logo" loading="lazy" class="me-3" style="height: 42px;">
@@ -43,8 +43,8 @@
             </div>
             
             <h1 class="navbar-brand mb-0 mx-auto d-flex align-items-center">
-                <i class="fas fa-chart-line text-primary me-2"></i>
-                <span class="fw-bold" style="background: linear-gradient(45deg, #3498db, #1abc9c); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                <i class="fas fa-chart-line me-2" style="color:#5b8dee;"></i>
+                <span class="fw-bold" style="background:linear-gradient(90deg,#5b8dee,#34c780);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">
                     PRODUCTION DASHBOARD
                 </span>
             </h1>
@@ -229,7 +229,28 @@
                             </div>
                         </div>
                     </div>  <!-- End of Summary Statistics -->
-                            
+
+                    <!-- KPI Speedometer Gauge -->
+                    <div class="row mt-0 mb-3">
+                        <div class="col-12">
+                            <div class="card kpi-gauge-card">
+                                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                    <h6 class="mb-0">🎯 KPI Gauge — ภาพรวมประสิทธิภาพการผลิต</h6>
+                                    <div class="d-flex gap-3 flex-wrap align-items-center" style="font-size:0.75rem;">
+                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#dc3545;margin-right:4px;"></span>Critical &lt;85%</span>
+                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#ffc107;margin-right:4px;"></span>Warning 85–94%</span>
+                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#28a745;margin-right:4px;"></span>Good 95–100%</span>
+                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#007bff;margin-right:4px;"></span>Excellent &gt;100%</span>
+                                    </div>
+                                    <span id="kpiGaugeLabel" class="badge bg-secondary fs-6 px-3 py-1">--</span>
+                                </div>
+                                <div class="card-body p-0" style="background:transparent;">
+                                    <canvas id="kpiGaugeCanvas" style="width:100%;display:block;"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>  <!-- End of KPI Gauge -->
+
                     <!-- Charts Section -->
                     <div class="row">
                         <!-- Line F/C -->
@@ -326,22 +347,21 @@
                                     <span class="badge bg-primary" id="modelCountBadge">Total 0 Models</span>
                                 </div>
                                 <div class="card-body p-3">
-                                    <div class="overflow-x-auto rounded-lg shadow-md">
-                                        <table class="min-w-full divide-y divide-gray-200" id="modelSummaryTable">
-                                            <thead class="bg-blue-100">
+                                    <div class="overflow-x-auto">
+                                        <table class="min-w-full" id="modelSummaryTable">
+                                            <thead class="quality-thead">
                                                 <tr>
-                                                    <th scope="col" class="px-6 py-2 text-left text-sm font-bold text-gray-700 uppercase tracking-wider rounded-tl-lg">Model</th>
-                                                    <th scope="col" class="px-6 py-2 text-center text-sm font-bold text-gray-700 uppercase tracking-wider">F/C</th>
-                                                    <th scope="col" class="px-6 py-2 text-center text-sm font-bold text-gray-700 uppercase tracking-wider">F/B</th>
-                                                    <th scope="col" class="px-6 py-2 text-center text-sm font-bold text-gray-700 uppercase tracking-wider">R/C</th>
-                                                    <th scope="col" class="px-6 py-2 text-center text-sm font-bold text-gray-700 uppercase tracking-wider">R/B</th>
-                                                    <th scope="col" class="px-6 py-2 text-center text-sm font-bold text-gray-700 uppercase tracking-wider">3RD</th>
-                                                    <th scope="col" class="px-6 py-2 text-center text-sm font-bold text-gray-700 uppercase tracking-wider">Sub</th>
+                                                    <th scope="col" class="px-6 py-2 text-left text-sm font-bold uppercase tracking-wider rounded-tl-lg">Model</th>
+                                                    <th scope="col" class="px-6 py-2 text-center text-sm font-bold uppercase tracking-wider">F/C</th>
+                                                    <th scope="col" class="px-6 py-2 text-center text-sm font-bold uppercase tracking-wider">F/B</th>
+                                                    <th scope="col" class="px-6 py-2 text-center text-sm font-bold uppercase tracking-wider">R/C</th>
+                                                    <th scope="col" class="px-6 py-2 text-center text-sm font-bold uppercase tracking-wider">R/B</th>
+                                                    <th scope="col" class="px-6 py-2 text-center text-sm font-bold uppercase tracking-wider">3RD</th>
+                                                    <th scope="col" class="px-6 py-2 text-center text-sm font-bold uppercase tracking-wider">Sub</th>
                                                 </tr>
                                             </thead>
-
-                                            <tbody class="bg-white divide-y divide-gray-200" id="modelSummaryBody">
-                                            <tr class="hover:bg-gray-50">
+                                            <tbody id="modelSummaryBody">
+                                            <tr class="qt-row-even">
                                                 <td colspan="9" class="text-center py-3">กำลังโหลดข้อมูล...</td>
                                             </tr>
                                             </tbody>
@@ -519,8 +539,8 @@
                                 </div>
                                 <div class="card-body p-3">
                                     <div class="overflow-x-auto">
-                                        <table class="table table-hover table-striped" id="crossProcessTable">
-                                            <thead class="bg-blue-100">
+                                        <table class="table table-hover" id="crossProcessTable">
+                                            <thead class="quality-thead">
                                                 <tr>
                                                     <th scope="col" class="px-6 py-2 text-left text-sm font-bold">Detail\Nickname</th>
                                                     <!-- Headers จะถูกเติมจาก JavaScript -->
@@ -546,8 +566,8 @@
                                 </div>
                                 <div class="card-body p-3">
                                     <div class="overflow-x-auto">
-                                        <table class="table table-hover table-striped" id="crossModelTable">
-                                            <thead class="bg-blue-100">
+                                        <table class="table table-hover" id="crossModelTable">
+                                            <thead class="quality-thead">
                                                 <tr>
                                                     <th scope="col" class="px-6 py-2 text-left text-sm font-bold">Detail\Model</th>
                                                     <!-- Headers จะถูกเติมจาก JavaScript -->

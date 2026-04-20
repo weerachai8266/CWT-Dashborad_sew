@@ -1,0 +1,50 @@
+# Dependencies
+/vendor/
+
+# Environment & config secrets
+config/db.php
+
+# LLM runtime files
+llm/__pycache__/
+llm/*.pid
+llm/*.pyc
+llm/.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+
+# Logs & temp
+*.log
+*.tmp
+*.cache
+/tmp/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Export output (generated files)
+exports/
+*.xlsx
+*.csv
+
+# Node (if any tooling)
+node_modules/
+npm-debug.log*
+
+# AI
+.codex

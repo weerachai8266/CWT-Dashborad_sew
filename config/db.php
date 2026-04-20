@@ -1,6 +1,6 @@
 <?php
-$servername = "server01";         // IP หรือชื่อเซิร์ฟเวอร์ MySQL
-$username   = "webapp_sewing";               // ชื่อผู้ใช้ MySQL
+$servername = "127.0.0.1";         // IP หรือชื่อเซิร์ฟเวอร์ MySQL
+$username   = "webapp";               // ชื่อผู้ใช้ MySQL
 $password   = "user";         // รหัสผ่าน
 $dbname     = "automotive";       // ชื่อฐานข้อมูล
 
