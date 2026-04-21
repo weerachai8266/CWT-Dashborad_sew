@@ -26,7 +26,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
 
     <!-- ปรับปรุงความเร็วของการโหลดหน้า -->
-    <link rel="preload" href="script/script.js" as="script">
+    <link rel="preload" href="script/config.js" as="script">
+    <link rel="preload" href="script/gauges.js" as="script">
+    <link rel="preload" href="script/charts.js" as="script">
+    <link rel="preload" href="script/data.js" as="script">
+    <link rel="preload" href="script/ui.js" as="script">
+    <link rel="preload" href="script/ai-chat.js" as="script">
     <link rel="preload" href="css/style.css" as="style">
 
 </head>
@@ -71,9 +76,9 @@
                 <li class="nav-item">
                     <a class="nav-link" id="quality-tab" data-bs-toggle="tab" href="#quality" role="tab" title="Quality">✅ <span class="nav-text">Quality</span></a>
                 </li>
-                <!-- <li class="nav-item">
+                <li class="nav-item">
                     <a class="nav-link" id="performance-tab" data-bs-toggle="tab" href="#performance" role="tab" title="Performance">📈 <span class="nav-text">Performance</span></a>
-                </li> -->
+                </li>
 
                 <!-- <li class="nav-item">
                     <a class="nav-link" id="activate_license-tab" data-bs-toggle="tab" href="#activate_license" role="tab">📝 license</a>
@@ -717,7 +722,7 @@
                         <span>Leather Seats and Auto Parts</span>
                     </div>
                     <div class="footer-center">
-                        <span>Production Dashboard &copy; <span id="footerYear"></span></span>
+                        <span>Production Dashboard &copy; 2025</span>
                     </div>
                     <div class="footer-right">
                         <span class="footer-version">v2.0</span>
@@ -785,8 +790,12 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="script/script.js"></script>
-    <script>document.getElementById('footerYear').textContent = new Date().getFullYear();</script>
+    <script src="script/config.js"></script>
+    <script src="script/gauges.js"></script>
+    <script src="script/charts.js"></script>
+    <script src="script/data.js"></script>
+    <script src="script/ui.js"></script>
+    <script src="script/ai-chat.js"></script>
     
 </body>
 </html>
