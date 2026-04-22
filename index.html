@@ -25,6 +25,15 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
 
+    <!-- Tracker Configuration -->
+    <script>
+        window.TRACKER_SITE='sewing'; // เปลี่ยนชื่อเว็บตามจริง
+        window.TRACKER_URL = location.hostname === '192.168.100.10'
+        ? 'http://192.168.100.10/dashboard/tracker.php'
+        : 'http://192.168.0.44/dashboard/tracker.php';
+    </script>
+    <script src="http://192.168.0.44/dashboard/track.js" async></script>
+
     <!-- ปรับปรุงความเร็วของการโหลดหน้า -->
     <link rel="preload" href="script/config.js" as="script">
     <link rel="preload" href="script/gauges.js" as="script">
@@ -78,15 +87,9 @@
                 <li class="nav-item">
                     <a class="nav-link" id="performance-tab" data-bs-toggle="tab" href="#performance" role="tab" title="Performance">📈 <span class="nav-text">Performance</span></a>
                 </li>
-                <!-- <li class="nav-item">
-                    <a class="nav-link" id="activate_license-tab" data-bs-toggle="tab" href="#activate_license" role="tab">📝 license</a>
-                </li> -->
-                <!-- <li class="nav-item">
-                    <a class="nav-link" id="performance-tab" data-bs-toggle="tab" href="#performance" role="tab">📈 Performance</a>
-                </li> -->
-                <!-- <li class="nav-item">
-                    <a class="nav-link" id="report-tab" data-bs-toggle="tab" href="#report_data" role="tab">📝 Report [Beta]</a>
-                </li> -->
+                <li class="nav-item">
+                    <a class="nav-link" id="aireport-tab" data-bs-toggle="tab" href="#aireport" role="tab" title="AI Report">🤖 <span class="nav-text">AI Report <span class="badge bg-warning text-dark ms-1" style="font-size:0.6rem;">beta</span></span></a>
+                </li>
             </ul>
         </nav>
 
@@ -147,8 +150,8 @@
                      
                     <!-- Summary Statistics -->
                     <!-- เดี๋ยวกลับมาแก้ฟังก์ชั่นนี้ -->
-                    <div class="row mt-3">
-                        <div class="col-12 mb-4">
+                    <div class="row mt-0">
+                        <div class="col-12 mb-3">
                             <div class="card">
                                 <div class="card-header bg-info text-white">
                                     <h6 class="mb-0">📋 สรุปผลรวม</h6>
@@ -369,8 +372,8 @@
                     </div>  <!-- End of quality Filter -->                    
 
                     <!-- <hr class="my-2"> -->
-                    <div class="row mt-3">
-                        <div class="col-12 mb-4">
+                    <div class="row mt-0">
+                        <div class="col-12 mb-3">
                             <div class="card">
                                 <div class="card-header bg-info text-white">
                                     <h6 class="mb-0">🔴 สรุปของเสีย</h6>
@@ -426,7 +429,7 @@
                     </div>  <!-- End of Summary Statistics -->
 
                     <!-- Quality KPI Gauge -->
-                    <div class="row mt-2 mb-3">
+                    <div class="row mt-0 mb-3">
                         <div class="col-12">
                             <div class="card kpi-gauge-card">
                                 <div class="card-header bg-info text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -451,8 +454,8 @@
 
                     <!-- Charts Container -->
                     <!-- กราฟสรุปของเสียแยกตามไลน์ -->
-                    <div class="row mb-4">
-                        <div class="col-6 mb-4">
+                    <div class="row mb-3">
+                        <div class="col-6 mb-3">
                             <div class="card line-card">
                                 <div class="card-header bg-primary text-white">
                                     <h6 class="mb-0">📊 Production Line</h6>
@@ -464,7 +467,7 @@
                         </div>
 
                         <!-- กราฟสรุปของเสียแยกตามปัญหา -->
-                        <div class="col-6 mb-4">
+                        <div class="col-6 mb-3">
                             <div class="card line-card">
                                 <div class="card-header bg-warning text-dark">
                                     <h6 class="mb-0">📊 Problem Type</h6>
@@ -476,7 +479,7 @@
                         </div>
 
                         <!-- กราฟสรุปของเสียแยกตามโมเดล -->
-                        <div class="col-6 mb-4">
+                        <div class="col-6 mb-3">
                             <div class="card line-card">
                                 <div class="card-header bg-success text-white">
                                     <h6 class="mb-0">📊 Model</h6>
@@ -486,7 +489,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-6 mb-4">
+                        <div class="col-6 mb-3">
                             <div class="card line-card">
                                 <div class="card-header bg-info text-white">
                                     <h6 class="mb-0">📈 Timeline of Defects</h6>
@@ -499,10 +502,10 @@
                     </div>  <!-- End of Charts Container -->
 
                     <!-- Quality Data Tab -->
-                    <div class="row mt-4">
+                    <div class="row mt-3">
                         <!-- Cross Process-Detail Table -->
                         <div class="col-12">
-                            <div class="card shadow-sm mb-4" id="crossProcessCard">
+                            <div class="card shadow-sm mb-3" id="crossProcessCard">
                                 <div class="card-header bg-info d-flex justify-content-between align-items-center">
                                     <h6 class="mb-0 text-white">Cross-Process-Detail</h6>
                                     <span class="badge bg-primary" id="processDetailCount">Total 0 Details</span>
@@ -683,31 +686,110 @@
                             </div>
                         </div>
                     </div>
-                </div>  <!-- End of Report Data Tab -->
+                </div>  
 
-                <!-- Report Data Tab -->
-                <div class="tab-pane fade" id="report_data" role="tabpanel">
-                    <div class="container-fluid px-3 mt-4">
-                        <!-- Report Filter -->
-                        <div class="row " id="report-filter-form">
-                            <div class="col-md-10">
-                                <div class="input-group">
-                                    <label class="input-group-text">วันที่</label>
-                                    <input type="date" class="form-control" id="report_date_start" placeholder="เลือกวันที่">
-                                    <input type="date" class="form-control" id="report_date_end" placeholder="เลือกวันที่">
+                <!-- AI Report [beta] Tab -->
+                <div class="tab-pane fade" id="aireport" role="tabpanel">
+
+                    <!-- Filter Bar -->
+                    <div class="d-flex flex-wrap align-items-center gap-2 py-2 px-1" id="aireport-filter-form">
+                        <div class="input-group input-group-sm" style="width:auto;">
+                            <label class="input-group-text">📅</label>
+                            <input type="date" class="form-control form-control-sm" id="ai_date_start">
+                            <input type="date" class="form-control form-control-sm" id="ai_date_end">
+                        </div>
+
+                        <div class="vr opacity-25 d-none d-md-block"></div>
+
+                        <div class="d-flex align-items-center gap-2" style="font-size:0.82rem;">
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" type="radio" name="aiReportType" id="aiTypeCombined" value="combined" checked>
+                                <label class="form-check-label" for="aiTypeCombined">รายงานรวม</label>
+                            </div>
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" type="radio" name="aiReportType" id="aiTypeProduction" value="production">
+                                <label class="form-check-label" for="aiTypeProduction">การผลิต</label>
+                            </div>
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" type="radio" name="aiReportType" id="aiTypeQuality" value="quality">
+                                <label class="form-check-label" for="aiTypeQuality">คุณภาพ</label>
+                            </div>
+                        </div>
+
+                        <span id="aiStatusBadge" class="badge bg-secondary ms-1" style="font-size:0.72rem;">⏳ ตรวจสอบ AI...</span>
+
+                        <div class="ms-auto d-flex gap-2">
+                            <button id="ai_btnGenerate" class="btn btn-primary btn-sm" disabled>
+                                <i class="fas fa-robot me-1"></i>สร้างรายงาน
+                            </button>
+                        </div>
+                    </div><!-- End Filter Bar -->
+
+                    <!-- Report Output + Data Summary (2-column layout) -->
+                    <div class="row mt-3 mb-3 align-items-start">
+
+                        <!-- LEFT: AI Report -->
+                        <div class="col-lg-6 mb-3">
+                            <div class="card h-100" id="aiReportCard">
+                                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
+                                     style="background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);color:#e0e0e0;">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="fas fa-robot" style="color:#7c83fd;"></i>
+                                        <h6 class="mb-0">AI Report — <span id="aiReportTypeLabel">รายงานรวม</span></h6>
+                                        <span id="aiPeriodLabel" class="badge bg-secondary" style="font-size:0.7rem;"></span>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <!-- <span id="aiModelLabel" class="text-muted" style="font-size:0.72rem;"></span> -->
+                                        <span id="aiTimingLabel" class="text-muted" style="font-size:0.72rem;"></span>
+                                        <button id="ai_btnCopy" class="btn btn-outline-secondary btn-sm d-none" title="คัดลอกรายงาน">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body" id="aiReportBody" style="min-height: 300px;overflow-y:auto;">
+                                    <div id="aiReportPlaceholder" class="text-center py-5 text-muted">
+                                        <i class="fas fa-robot fa-3x mb-3" style="opacity:0.3;"></i>
+                                        <p>เลือกช่วงเวลาและประเภทรายงาน แล้วกด <strong>สร้างรายงาน</strong></p>
+                                    </div>
+                                    <div id="aiReportLoading" class="d-none text-center py-5">
+                                        <div class="spinner-border text-primary mb-3" role="status"></div>
+                                        <p class="text-muted">AI กำลังวิเคราะห์ข้อมูล... (ใช้เวลาประมาณ 60-120 วินาที)</p>
+                                        <div class="progress" style="height:4px;max-width:400px;margin:0 auto;">
+                                            <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width:100%"></div>
+                                        </div>
+                                    </div>
+                                    <div id="aiReportContent" class="d-none ai-report-content"></div>
                                 </div>
                             </div>
+                        </div>
 
-                            <!-- button -->
-                            <div class="col-md-2 d-flex justify-content-end gap-3 align-items-start">
-                                <a id="btnExport" href="#" class="btn btn-success">Export</a>
+                        <!-- RIGHT: Production + Quality stacked -->
+                        <div class="col-lg-6" id="aiDataSummaryRow">
+                            <div class="card mb-3">
+                                <div class="card-header bg-info text-white">
+                                    <h6 class="mb-0">📊 ข้อมูลการผลิต (ช่วงที่เลือก)</h6>
+                                </div>
+                                <div class="card-body p-2">
+                                    <div class="row text-center g-2" id="aiProdCards">
+                                        <div class="col-12 text-muted py-2" id="aiProdPlaceholder">ยังไม่มีข้อมูล</div>
+                                    </div>
+                                </div>
                             </div>
-                            
-                        </div>  <!-- End of Report Filter -->                        
+                            <div class="card mb-3">
+                                <div class="card-header bg-danger text-white">
+                                    <h6 class="mb-0">🔴 ข้อมูลคุณภาพ (ช่วงที่เลือก)</h6>
+                                </div>
+                                <div class="card-body p-2">
+                                    <div class="row text-center g-2" id="aiQualCards">
+                                        <div class="col-12 text-muted py-2" id="aiQualPlaceholder">ยังไม่มีข้อมูล</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-                        <hr class="my-2">
-                    </div>
-                </div>  <!-- End of Report Data Tab -->
+                    </div><!-- End Report + Data Summary -->
+
+                </div><!-- End of AI Report Tab -->
 
             </div>  <!-- End of Tab Content -->
 
@@ -733,11 +815,20 @@
 
     </div>  <!-- End of Container Fluid -->
 
+    <!-- Hidden inputs สำหรับ backward-compat กับ ui.js / script.js -->
+    <!-- btnExport, report_date_start, report_date_end ถูกอ้างอิงใน ui.js -->
+    <div style="display:none;" aria-hidden="true">
+        <input type="date" id="report_date_start">
+        <input type="date" id="report_date_end">
+        <button id="btnExport"></button>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="script/config.js"></script>
     <script src="script/gauges.js"></script>
     <script src="script/charts.js"></script>
     <script src="script/data.js"></script>
     <script src="script/ui.js"></script>
+    <script src="script/ai_report.js"></script>
 </body>
 </html>
