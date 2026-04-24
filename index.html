@@ -85,9 +85,6 @@
                     <a class="nav-link" id="quality-tab" data-bs-toggle="tab" href="#quality" role="tab" title="Quality">✅ <span class="nav-text">Quality</span></a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" id="performance-tab" data-bs-toggle="tab" href="#performance" role="tab" title="Performance">📈 <span class="nav-text">Performance</span></a>
-                </li>
-                <li class="nav-item">
                     <a class="nav-link" id="aireport-tab" data-bs-toggle="tab" href="#aireport" role="tab" title="AI Report">🤖 <span class="nav-text">AI Report <span class="badge bg-warning text-dark ms-1" style="font-size:0.6rem;">beta</span></span></a>
                 </li>
             </ul>
@@ -104,10 +101,11 @@
                 <div class="tab-pane fade show active" id="production" role="tabpanel">
                     <!-- production Filter -->
                     <div class="d-flex flex-wrap align-items-center gap-2 py-2 px-1 position-relative" id="production-filter-form">
-                        <!-- Date -->
+                        <!-- Date Range -->
                         <div class="input-group input-group-sm" style="width:auto;">
                             <label class="input-group-text">📅</label>
                             <input type="date" class="form-control form-control-sm" id="production_date_start">
+                            <input type="date" class="form-control form-control-sm" id="production_date_end">
                         </div>
 
                         <!-- Divider -->
@@ -215,7 +213,7 @@
                         <div class="col-12">
                             <div class="card kpi-gauge-card">
                                 <div class="card-header bg-info text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                    <h6 class="mb-0">🎯 KPI Gauge — ภาพรวมประสิทธิภาพการผลิต</h6>
+                                    <h6 class="mb-0">🎯 Performance KPI Gauge — ภาพรวมประสิทธิภาพการผลิต</h6>
                                     <div class="d-flex gap-3 flex-wrap align-items-center" style="font-size:0.75rem;">
                                         <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#dc3545;margin-right:4px;"></span>Critical &lt;85%</span>
                                         <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#ffc107;margin-right:4px;"></span>Warning 85–94%</span>
@@ -232,7 +230,35 @@
                                 </div>
                             </div>
                         </div>
-                    </div>  <!-- End of KPI Gauge -->                    
+                    </div>  <!-- End of KPI Gauge -->
+
+                    <!-- KPI Trend Charts -->
+                    <div class="row mt-0 mb-3">
+                        <!-- แต่ละ Line -->
+                        <div class="col-lg-8 col-12 mb-3 mb-lg-0">
+                            <div class="card h-100">
+                                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">📉 KPI Trend — แยกไลน์</h6>
+                                    <span id="kpiTrendPeriodLabel" class="badge bg-secondary" style="font-size:0.72rem;"></span>
+                                </div>
+                                <div class="card-body" style="padding:12px 8px;">
+                                    <canvas id="kpiTrendChart" style="width:100%;height:220px;"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- ค่าเฉลี่ยรวม -->
+                        <div class="col-lg-4 col-12">
+                            <div class="card h-100">
+                                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">📊 Overall KPI Trend — ค่าเฉลี่ยรวม</h6>
+                                    <span id="kpiAvgTrendPeriodLabel" class="badge bg-secondary" style="font-size:0.72rem;"></span>
+                                </div>
+                                <div class="card-body" style="padding:12px 8px;">
+                                    <canvas id="kpiAvgTrendChart" style="width:100%;height:220px;"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>  <!-- End of KPI Trend Charts -->
 
                     <!-- Charts Section -->
                     <div class="row">
@@ -564,133 +590,6 @@
                     <!-- End of Cross Model-Detail Table -->
 
                 </div>  <!-- End of quality Data Tab --> 
-
-                <!-- Performance Data Tab -->
-                <div class="tab-pane fade" id="performance" role="tabpanel">
-                    <!-- Performance Filter -->
-                    <div class="d-flex flex-wrap align-items-center gap-2 py-2 px-1" id="performance-filter-form">
-                        <!-- Date Range -->
-                        <div class="input-group input-group-sm" style="width:auto;">
-                            <label class="input-group-text">📅</label>
-                            <input type="date" class="form-control form-control-sm" id="performance_date_start">
-                            <input type="date" class="form-control form-control-sm" id="performance_date_end">
-                        </div>
-
-                        <!-- Divider -->
-                        <div class="vr opacity-25 d-none d-md-block"></div>
-
-                        <!-- View Type -->
-                        <div class="d-flex align-items-center gap-2" style="font-size:0.82rem;">
-                            <div class="form-check mb-0">
-                                <input class="form-check-input" type="radio" name="performanceType" id="radioDaily" value="daily" checked>
-                                <label class="form-check-label" for="radioDaily">รายวัน</label>
-                            </div>
-                            <div class="form-check mb-0">
-                                <input class="form-check-input" type="radio" name="performanceType" id="radioMonthly" value="monthly">
-                                <label class="form-check-label" for="radioMonthly">รายเดือน</label>
-                            </div>
-                        </div>
-
-                        <!-- Buttons pushed to right -->
-                        <div class="ms-auto d-flex gap-2">
-                            <button id="performance_btnFilter" class="btn btn-primary btn-sm">ตกลง</button>
-                        </div>
-                    </div>
-                    <!-- <hr class="my-3"> -->
-
-                    <!-- Performance KPI Cards -->
-                    <div class="row mt-3">
-                        <div class="col-12 mb-4">
-                            <div class="card">
-                                <div class="card-header bg-primary text-white">
-                                    <h6 class="mb-0">📊 Performance KPIs</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row text-center">
-                                        <div class="col-md-3">
-                                            <div class="border rounded p-3 performance-card summary-card">
-                                                <h4 class="text-success" id="overallEfficiency">0%</h4>
-                                                <small>Efficiency</small>
-                                                <!-- <small>(Actual ÷ Target) × 100</small> -->
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="border rounded p-3 performance-card summary-card">
-                                                <h4 class="text-info" id="qualityRate">0%</h4>
-                                                <small>Quality Rate</small>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="border rounded p-3 performance-card summary-card">
-                                                <h4 class="text-warning" id="productivityRate">0</h4>
-                                                <small>Productivity</small>
-                                                <!-- <small>Output/Man/Hr</small> -->
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="border rounded p-3 performance-card summary-card">
-                                                <h4 class="text-danger" id="defectRate">0%</h4>
-                                                <small>Defect Rate</small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Performance Charts -->
-                    <div class="row">                       
-
-                        <!-- Performance Comparison Chart -->
-                        <div class="col-lg-6 col-md-12 mb-4">
-                            <div class="card summary-card">
-                                <div class="card-header bg-info text-white">
-                                    <h6 class="mb-0">📊 Line Performance</h6>
-                                </div>
-                                <div class="card-body">
-                                    <canvas id="performanceComparisonChart"></canvas>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Target vs Actual Chart -->
-                        <div class="col-lg-6 col-md-12 mb-4">
-                            <div class="card summary-card">
-                                <div class="card-header bg-warning text-dark">
-                                    <h6 class="mb-0">🎯 Target vs Actual</h6>
-                                </div>
-                                <div class="card-body">
-                                    <canvas id="targetVsActualChart"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Efficiency Trend Chart -->
-                        <div class="col-lg-6 col-md-12 mb-4">
-                            <div class="card summary-card">
-                                <div class="card-header bg-success text-white">
-                                    <h6 class="mb-0">📈 Efficiency Trend</h6>
-                                </div>
-                                <div class="card-body">
-                                    <canvas id="efficiencyTrendChart"></canvas>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Quality Performance Chart -->
-                        <div class="col-lg-6 col-md-12 mb-4">
-                            <div class="card summary-card">
-                                <div class="card-header bg-danger text-white">
-                                    <h6 class="mb-0">✅ Quality Performance</h6>
-                                </div>
-                                <div class="card-body">
-                                    <canvas id="qualityPerformanceChart"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>  
 
                 <!-- AI Report [beta] Tab -->
                 <div class="tab-pane fade" id="aireport" role="tabpanel">

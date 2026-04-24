@@ -26,7 +26,7 @@ try {
             break;
             
         case 'daily':
-            $data = $report->getDailyReport($start_date, $end_date);
+            $data = $report->getDailyReport($start_date, $end_date, $display_type);
             break;
             
         case 'summary':
@@ -38,31 +38,28 @@ try {
             break;
             
         case 'model_summary':
-            $date = $_GET['start_date'] ?? date('Y-m-d');
+            $ms_start = $_GET['start_date'] ?? date('Y-m-d');
+            $ms_end   = $_GET['end_date']   ?? $ms_start;
             
             try {
-                // สร้าง array เก็บข้อมูลโมเดล
                 $models = [];
                 $totals = [
-                    'fc' => 0, 'fb' => 0, 'rc' => 0, 
+                    'fc' => 0, 'fb' => 0, 'rc' => 0,
                     'rb' => 0, '3rd' => 0, 'sub' => 0
                 ];
                 
-                // ดึงข้อมูลจากแต่ละตาราง (แต่ละไลน์)
                 $lines = ['fc', 'fb', 'rc', 'rb', '3rd', 'sub'];
                 
                 foreach ($lines as $line) {
                     $tableName = "sewing_{$line}";
-                    
-                    // ข้ามไลน์ที่อาจไม่มีตาราง
                     try {
                         $stmt = $conn->prepare("
                             SELECT item, SUM(qty) as total
                             FROM {$tableName}
-                            WHERE DATE(created_at) = ? AND status = 10
+                            WHERE DATE(created_at) BETWEEN ? AND ? AND status = 10
                             GROUP BY item
                         ");
-                        $stmt->execute([$date]);
+                        $stmt->execute([$ms_start, $ms_end]);
                         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         
                         foreach ($rows as $row) {

@@ -180,10 +180,6 @@ document.getElementById('quality_btnFilter').addEventListener('click', async fun
     await loadQualityData();
 });
 
-document.getElementById('performance_btnFilter').addEventListener('click', function() {
-    loadPerformanceData();
-});
-
 document.getElementById('btnExport').addEventListener('click', function(e) {
     e.preventDefault();
 
@@ -290,12 +286,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     const firstOfMonth = `${_n.getFullYear()}-${String(_n.getMonth() + 1).padStart(2, '0')}-01`;
 
     document.getElementById('production_date_start').value = today;
+    document.getElementById('production_date_end').value = today;
 
     document.getElementById('quality_date_start').value = firstOfMonth;
     document.getElementById('quality_date_end').value = today;
-
-    document.getElementById('performance_date_start').value = firstOfMonth;
-    document.getElementById('performance_date_end').value = today;
 
     document.getElementById('report_date_start').value = firstOfMonth;
     document.getElementById('report_date_end').value = today;
@@ -306,7 +300,6 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     window._productivityLastRate = 0;
     await loadProductData();
-    loadPerformanceData();
 
     startRealTimeUpdate();
     toggleDisplayType();
@@ -317,9 +310,5 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     document.getElementById('quality-tab').addEventListener('shown.bs.tab', function() {
         loadQualityData();
-    });
-
-    document.getElementById('performance-tab').addEventListener('shown.bs.tab', function() {
-        loadPerformanceData();
     });
 });

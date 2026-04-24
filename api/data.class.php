@@ -264,7 +264,7 @@ class get_db {
     }
 
     // ดึงข้อมูลรายวันตามช่วงวันที่
-    public function getDailyReport($start_date, $end_date) {
+    public function getDailyReport($start_date, $end_date, $display_type = 'pieces') {
         $result = [];
         $labels = [];
         
@@ -279,6 +279,13 @@ class get_db {
             $labels[] = $date->format('d/m');
         }
         $result['labels'] = $labels;
+
+        // คำนวณนาทีทำงานต่อวัน (หักเบรค) — ใช้ร่วมกันทุก line
+        $single_day_minutes = 0;
+        for ($hour = 8; $hour <= 17; $hour++) {
+            $single_day_minutes += $this->getActualWorkingMinutes($hour);
+        }
+        $targets_cache = [];
         
         foreach ($this->tables as $line => $table_name) {
             // ตรวจสอบว่าตารางมีอยู่จริง
@@ -294,8 +301,7 @@ class get_db {
 
             $query = "SELECT 
                         DATE(created_at) as date,
-                        SUM(qty) as total_qty,
-                        COUNT(*) as total_items
+                        SUM(qty) as total_qty
                       FROM " . $table_name . " 
                       WHERE DATE(created_at) BETWEEN :start_date AND :end_date AND status = '10' 
                       GROUP BY DATE(created_at) 
@@ -316,7 +322,19 @@ class get_db {
                 $line_data = [];
                 foreach ($period as $date) {
                     $date_str = $date->format('Y-m-d');
-                    $line_data[] = isset($daily_data[$date_str]) ? $daily_data[$date_str] : 0;
+                    $qty = isset($daily_data[$date_str]) ? $daily_data[$date_str] : 0;
+
+                    if ($display_type === 'percentage') {
+                        // ใช้ calculateHourlyAveragePercentage เพื่อให้ตรงกับ Summary
+                        if (!isset($targets_cache[$date_str])) {
+                            $targets_cache[$date_str] = $this->getTargets($date_str);
+                        }
+                        $day_hourly_target = $targets_cache[$date_str][$line] ?? 0;
+                        $pct = $this->calculateHourlyAveragePercentage($date_str, $date_str, $line, $table_name, $day_hourly_target);
+                        $line_data[] = round($pct, 1);
+                    } else {
+                        $line_data[] = $qty;
+                    }
                 }
                 
                 $result[$line] = $line_data;
@@ -372,12 +390,26 @@ class get_db {
                 // คำนวณเปอร์เซ็นต์แบบรายชั่วโมงแล้วเฉลี่ย
                 $percentage = $this->calculateHourlyAveragePercentage($start_date, $end_date, $line, $table_name, $targets[$line]);
                 
-                // คำนวณเป้าหมายรวมสำหรับทั้งวัน (หักเวลาพักเบรค)
-                $total_working_minutes = 0;
+                // ดึง distinct วันที่มีการผลิตจริง
+                $dates_stmt = $this->conn->prepare(
+                    "SELECT DISTINCT DATE(created_at) as prod_date FROM " . $table_name .
+                    " WHERE DATE(created_at) BETWEEN :s AND :e AND status = '10' ORDER BY prod_date"
+                );
+                $dates_stmt->execute([':s' => $start_date, ':e' => $end_date]);
+                $prod_dates = $dates_stmt->fetchAll(PDO::FETCH_COLUMN);
+
+                // คำนวณเวลาทำงานต่อวัน (หักเบรค)
+                $single_day_minutes = 0;
                 for ($hour = 8; $hour <= 17; $hour++) {
-                    $total_working_minutes += $this->getActualWorkingMinutes($hour);
+                    $single_day_minutes += $this->getActualWorkingMinutes($hour);
                 }
-                $daily_target = (int) round(($targets[$line] * $total_working_minutes) / 60);
+
+                // คำนวณเป้าหมายรวม per-day (แต่ละวันใช้ target ของวันนั้น)
+                $daily_target = 0;
+                foreach ($prod_dates as $prod_date) {
+                    $day_targets = $this->getTargets($prod_date);
+                    $daily_target += (int) round($day_targets[$line] * $single_day_minutes / 60);
+                }
                 
                 $result[$line] = [
                     'total_qty' => $total_qty,
@@ -424,20 +456,26 @@ class get_db {
             $stmt->execute();
             
             $hourly_percentages = [];
+            $targets_cache = []; // cache target ต่อวัน เพื่อลด DB call
             
             while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                 $hour = (int)$row['hour'];
                 $actual_qty = (int)$row['total_qty'];
-                
+                $row_date = $row['date'];
+
+                // ดึง target ของวันนั้น (per-day) โดย cache ไว้
+                if (!isset($targets_cache[$row_date])) {
+                    $targets_cache[$row_date] = $this->getTargets($row_date);
+                }
+                $day_hourly_target = $targets_cache[$row_date][$line] ?? $hourly_target;
+
                 // คำนวณเป้าหมายรายชั่วโมง (หักเวลาพักเบรค)
                 $actual_working_minutes = $this->getActualWorkingMinutes($hour);
-                $adjusted_hourly_target = (int) round(($hourly_target * $actual_working_minutes) / 60);
-                // var_dump($adjusted_hourly_target);
+                $adjusted_hourly_target = (int) round(($day_hourly_target * $actual_working_minutes) / 60);
 
                 // คำนวณเปอร์เซ็นต์รายชั่วโมง
                 if ($adjusted_hourly_target > 0) {
                     $hourly_percentage = ($actual_qty / $adjusted_hourly_target) * 100;
-                    // var_dump($hourly_percentage);
                     $hourly_percentages[] = $hourly_percentage; 
                 }
             }

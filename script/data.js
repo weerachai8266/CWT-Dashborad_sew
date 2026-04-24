@@ -1,12 +1,14 @@
 // API Functions - Production
 async function fetchReportData(type = 'hourly') {
     const startDate = document.getElementById('production_date_start').value;
+    const endDateEl = document.getElementById('production_date_end');
+    const endDate = (endDateEl && endDateEl.value) ? endDateEl.value : startDate;
 
     try {
         showLoading(true);
         hideError();
 
-        const response = await fetch(`${API_BASE}?type=${type}&start_date=${startDate}&end_date=${startDate}&display_type=${currentDisplayType}`);
+        const response = await fetch(`${API_BASE}?type=${type}&start_date=${startDate}&end_date=${endDate}&display_type=${currentDisplayType}`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -166,7 +168,9 @@ async function updateSummary() {
 async function loadModelSummary() {
     try {
         const date = document.getElementById('production_date_start').value;
-        const response = await fetch(`${API_BASE}?type=model_summary&start_date=${date}&end_date=${date}`);
+        const endDateEl = document.getElementById('production_date_end');
+        const endDate = (endDateEl && endDateEl.value) ? endDateEl.value : date;
+        const response = await fetch(`${API_BASE}?type=model_summary&start_date=${date}&end_date=${endDate}`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -550,13 +554,253 @@ function updateKPIColors(elementId, value, reverse = false) {
 }
 
 // Load and display production data
+// KPI Trend Charts
+let kpiTrendChart = null;
+let kpiAvgTrendChart = null;
+
+async function loadKpiTrend() {
+    const startEl = document.getElementById('production_date_start');
+    const endEl   = document.getElementById('production_date_end');
+    const startDate = startEl ? startEl.value : '';
+    const endDate   = endEl   ? endEl.value   : '';
+
+    // ถ้าเลือกวันเดียว หรือไม่มีช่วง → ใช้ย้อนหลัง 30 วันจากวันที่เลือก
+    let trendStart, trendEnd;
+    if (!startDate || startDate === endDate) {
+        const base = startDate ? new Date(startDate) : new Date();
+        const from = new Date(base);
+        from.setDate(from.getDate() - 29);
+        trendStart = from.toISOString().split('T')[0];
+        trendEnd   = base.toISOString().split('T')[0];
+    } else {
+        trendStart = startDate;
+        trendEnd   = endDate;
+    }
+
+    // อัปเดต period label
+    const label = document.getElementById('kpiTrendPeriodLabel');
+    if (label) label.textContent = `${trendStart} → ${trendEnd}`;
+
+    try {
+        const resp = await fetch(`${API_BASE}?type=daily&start_date=${trendStart}&end_date=${trendEnd}&display_type=percentage`);
+        const result = await resp.json();
+        if (!result.success) return;
+
+        const data = result.data;
+        const labels = data.labels || [];
+
+        const datasets = [
+            { key: 'fc',    label: 'F/C',     color: '#28a745' },
+            { key: 'fb',    label: 'F/B',     color: '#ffc107' },
+            { key: 'rc',    label: 'R/C',     color: '#dc3545' },
+            { key: 'rb',    label: 'R/B',     color: '#9b72cf' },
+            { key: 'third', label: '3RD',     color: '#fd7e14' },
+            { key: 'sub',   label: 'Sub',     color: '#20c997' },
+        ].map(s => ({
+            label: s.label,
+            data: data[s.key] || [],
+            borderColor: s.color,
+            backgroundColor: s.color + '22',
+            borderWidth: 2,
+            pointRadius: labels.length > 60 ? 0 : 3,
+            pointHoverRadius: 5,
+            tension: 0.3,
+            fill: false,
+        }));
+
+        const canvas = document.getElementById('kpiTrendChart');
+        if (!canvas) return;
+
+        if (kpiTrendChart) {
+            // อัปเดต in-place ไม่ reset animation จาก 0
+            kpiTrendChart.data.labels = labels;
+            datasets.forEach((ds, i) => {
+                if (kpiTrendChart.data.datasets[i]) {
+                    kpiTrendChart.data.datasets[i].data = ds.data;
+                } else {
+                    kpiTrendChart.data.datasets.push(ds);
+                }
+            });
+            // ตัดชุดข้อมูลเกินออก (ถ้า line หายไป)
+            kpiTrendChart.data.datasets.splice(datasets.length);
+            kpiTrendChart.update('none');
+        } else {
+            kpiTrendChart = new Chart(canvas.getContext('2d'), {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top', labels: { color: '#8896a8', boxWidth: 12, padding: 12 } },
+                        datalabels: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y}%`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#8896a8', maxTicksLimit: 15 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        y: {
+                            beginAtZero: false,
+                            ticks: { color: '#8896a8', callback: v => v + '%' },
+                            grid: { color: 'rgba(255,255,255,0.05)' }
+                        }
+                    }
+                },
+                plugins: [ChartDataLabels]
+            });
+        }
+    } catch (e) {
+        console.error('KPI Trend error:', e);
+    }
+}
+
+async function loadKpiAvgTrend() {
+    const startEl = document.getElementById('production_date_start');
+    const endEl   = document.getElementById('production_date_end');
+    const startDate = startEl ? startEl.value : '';
+    const endDate   = endEl   ? endEl.value   : '';
+
+    let trendStart, trendEnd;
+    if (!startDate || startDate === endDate) {
+        const base = startDate ? new Date(startDate) : new Date();
+        const from = new Date(base);
+        from.setDate(from.getDate() - 29);
+        trendStart = from.toISOString().split('T')[0];
+        trendEnd   = base.toISOString().split('T')[0];
+    } else {
+        trendStart = startDate;
+        trendEnd   = endDate;
+    }
+
+    const label = document.getElementById('kpiAvgTrendPeriodLabel');
+    if (label) label.textContent = `${trendStart} → ${trendEnd}`;
+
+    try {
+        const resp = await fetch(`${API_BASE}?type=daily&start_date=${trendStart}&end_date=${trendEnd}&display_type=percentage`);
+        const result = await resp.json();
+        if (!result.success) return;
+
+        const data = result.data;
+        const labels = data.labels || [];
+        const keys = ['fc', 'fb', 'rc', 'rb', 'third', 'sub'];
+
+        // คำนวณค่าเฉลี่ยทุกวัน
+        const avgData = labels.map((_, i) => {
+            const vals = keys.map(k => data[k]?.[i] ?? 0).filter(v => v > 0);
+            return vals.length ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10 : 0;
+        });
+
+        const canvas = document.getElementById('kpiAvgTrendChart');
+        if (!canvas) return;
+
+        // สีตาม thresholds
+        const pointColors = avgData.map(v =>
+            v >= 101 ? '#5b8dee' : v >= 95 ? '#28a745' : v >= 85 ? '#ffc107' : '#dc3545'
+        );
+
+        const dataset = {
+            label: 'Overall KPI %',
+            data: avgData,
+            borderColor: '#5b8dee',
+            backgroundColor: avgData.map(v =>
+                (v >= 101 ? '#5b8dee' : v >= 95 ? '#28a745' : v >= 85 ? '#ffc107' : '#dc3545') + '33'
+            ),
+            pointBackgroundColor: pointColors,
+            pointRadius: labels.length > 60 ? 0 : 4,
+            pointHoverRadius: 6,
+            borderWidth: 2,
+            tension: 0.3,
+            fill: true,
+        };
+
+        if (kpiAvgTrendChart) {
+            // อัปเดต in-place ไม่ reset animation จาก 0
+            kpiAvgTrendChart.data.labels = labels;
+            if (kpiAvgTrendChart.data.datasets[0]) {
+                kpiAvgTrendChart.data.datasets[0].data = dataset.data;
+                kpiAvgTrendChart.data.datasets[0].backgroundColor = dataset.backgroundColor;
+                kpiAvgTrendChart.data.datasets[0].pointBackgroundColor = dataset.pointBackgroundColor;
+            } else {
+                kpiAvgTrendChart.data.datasets = [dataset];
+            }
+            kpiAvgTrendChart.update('none');
+        } else {
+            kpiAvgTrendChart = new Chart(canvas.getContext('2d'), {
+                type: 'line',
+                data: { labels, datasets: [dataset] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        datalabels: {
+                            display: labels.length <= 31,
+                            anchor: 'end',
+                            align: 'top',
+                            color: ctx => pointColors[ctx.dataIndex],
+                            font: { size: 10, weight: 'bold' },
+                            formatter: v => v + '%'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ` Overall: ${ctx.parsed.y}%`
+                            }
+                        },
+                        annotation: {
+                            annotations: {
+                                line85: { type: 'line', yMin: 85, yMax: 85, borderColor: '#ffc10766', borderWidth: 1, borderDash: [4, 4] },
+                                line95: { type: 'line', yMin: 95, yMax: 95, borderColor: '#28a74566', borderWidth: 1, borderDash: [4, 4] },
+                                line100: { type: 'line', yMin: 100, yMax: 100, borderColor: '#5b8dee66', borderWidth: 1, borderDash: [4, 4] },
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#8896a8', maxTicksLimit: 15 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        y: {
+                            beginAtZero: false,
+                            ticks: { color: '#8896a8', callback: v => v + '%' },
+                            grid: { color: 'rgba(255,255,255,0.05)' }
+                        }
+                    }
+                },
+                plugins: [ChartDataLabels]
+            });
+        }
+    } catch (e) {
+        console.error('KPI Avg Trend error:', e);
+    }
+}
+
 async function loadProductData() {
     try {
-        const hourlyData = await fetchReportData('hourly');
-        updateCharts(hourlyData);
+        const startDate = document.getElementById('production_date_start').value;
+        const endDate = document.getElementById('production_date_end').value;
+        const chartType = (startDate === endDate) ? 'hourly' : 'daily';
+
+        const chartData = await fetchReportData(chartType);
+        updateCharts(chartData);
 
         await updateSummary();
         await loadModelSummary();
+        await Promise.all([loadKpiTrend(), loadKpiAvgTrend()]);
+
+        // Fetch productivity rate (Output/Man-Hr) in background
+        fetch(`api/get_performance.php?action=kpis&start_date=${startDate}&end_date=${endDate}`)
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) {
+                    const rate = parseFloat(d.data.productivity_rate) || 0;
+                    window._productivityLastRate = rate;
+                    if (window._gaugeLastData) {
+                        drawKPIGauge(window._gaugeLastData.overall, window._gaugeLastData.lines);
+                    }
+                }
+            })
+            .catch(() => {});
 
     } catch (error) {
         console.error('Error loading report data:', error);

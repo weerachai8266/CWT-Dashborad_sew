@@ -340,6 +340,14 @@ tr.percentage-excellent { background-color: rgba( 91,141,238, 0.08) !important; 
     color: var(--text-primary) !important;
 }
 .form-control::placeholder { color: var(--text-dim) !important; }
+/* Restore native date/time picker UI (Bootstrap sets appearance:none which hides calendar) */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"] {
+    -webkit-appearance: auto !important;
+    appearance: auto !important;
+    color-scheme: dark;
+}
 .form-control:focus, .form-select:focus {
     background: var(--bg-input) !important;
     border-color: var(--accent) !important;
