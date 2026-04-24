@@ -113,54 +113,29 @@ try {
         try {
             $summary_data = $db_handler->getSummaryReport($start_date, $end_date, 'pieces');
             if ($summary_data) {
-                $total_actual = 0;
-                $total_target = 0;
-                $total_employees_man_hours = 0;
+                $total_actual    = 0;
+                $line_percentages = [];
 
-                // // ✅ ดึง manpower (เหมือนเดิม)
-                // $total_employees_man_hours = 0;
-                // try {
-                //     $sql_manpower = "SELECT DATE(created_at) as d, thour,
-                //                             fc_act, fb_act, rc_act, rb_act, 3rd_act as third_act, sub_act
-                //                     FROM sewing_man_act
-                //                     WHERE DATE(created_at) BETWEEN ? AND ?
-                //                     ORDER BY d, thour";
-                //     $stmt = $conn->prepare($sql_manpower);
-                //     $stmt->execute([$start_date, $end_date]);
-                //     $mp_rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                //     foreach ($mp_rows as $r) {
-                //         $sum = (int)$r['fc_act'] + (int)$r['fb_act'] + (int)$r['rc_act'] + (int)$r['rb_act']
-                //             + (int)$r['third_act'] + (int)$r['sub_act'];
-                //         if ($sum > 0) $total_employees_man_hours += $sum; // man-hours (1 ชั่วโมงต่อแถว)
-                //     }
-                // } catch (PDOException $e) {
-                //     error_log("Manpower fallback: ".$e->getMessage());
-                // }
-
+                // ใช้สูตรเดียวกับหน้า Production:
+                // overall_efficiency = average ของ % รายชั่วโมงของแต่ละ line
+                // (ค่า percentage ใน getSummaryReport คำนวณจาก calculateHourlyAveragePercentage)
                 foreach ($summary_data as $line => $data) {
-                    $actual = (int)($data['total_qty'] ?? 0);
-                    $total_actual += $actual;
-
-                    $hourly_target_rate = (int)($data['target'] ?? 0);
-                    if ($hourly_target_rate == 0) $hourly_target_rate = 49; // fallback
-
-                    // ✅ ใช้ฟังก์ชันใหม่สำหรับหลายวัน
-                    $line_target = computeLineTarget($db_handler, $hourly_target_rate, $start_date, $end_date);
-                    $total_target += $line_target;
+                    $total_actual += (int)($data['total_qty'] ?? 0);
+                    if (isset($data['percentage'])) {
+                        $line_percentages[] = (float)$data['percentage'];
+                    }
                 }
 
-                if ($total_target > 0) {
-                    $eff = ($total_actual / $total_target) * 100;
-                    $kpis['overall_efficiency'] = round($eff, 2);
+                if (count($line_percentages) > 0) {
+                    $kpis['overall_efficiency'] = round(
+                        array_sum($line_percentages) / count($line_percentages), 2
+                    );
                 }
 
                 // Productivity = Output / Man-Hours
                 $actual_man_hours = calculateActualManHours($conn, $start_date, $end_date);
                 if ($actual_man_hours > 0) {
                     $kpis['productivity_rate'] = round($total_actual / $actual_man_hours, 2);
-                } elseif ($total_employees_man_hours > 0) {
-                    // fallback ถ้ามีปัญหากับการคำนวณแบบใหม่
-                    $kpis['productivity_rate'] = round($total_actual / $total_employees_man_hours, 2);
                 }
 
                 // Defects & Quality
@@ -268,17 +243,13 @@ try {
             $summary_data = $db_handler->getSummaryReport($start_date, $end_date, 'pieces');
             if ($summary_data) {
                 foreach ($summary_data as $line => $data) {
-                    $hourly_target_rate = (int)($data['target'] ?? 0);
-                    if ($hourly_target_rate == 0) $hourly_target_rate = 49;
-                    $line_target = computeLineTarget($db_handler, $hourly_target_rate, $start_date, $end_date);
-
-                    $actual = (int)($data['total_qty'] ?? 0);
-                    $eff = $line_target > 0 ? ($actual / $line_target) * 100 : 0;
+                    // ใช้ percentage จาก calculateHourlyAveragePercentage เหมือนหน้า Production
+                    $eff = (float)($data['percentage'] ?? 0);
 
                     $line_performance[] = [
-                        'process' => strtoupper($line === 'third' ? '3RD' : $line),
-                        'actual_qty' => $actual,
-                        'target_qty' => $line_target,
+                        'process'    => strtoupper($line === 'third' ? '3RD' : $line),
+                        'actual_qty' => (int)($data['total_qty'] ?? 0),
+                        'target_qty' => (int)($data['daily_target'] ?? 0),
                         'efficiency' => round($eff, 2)
                     ];
                 }

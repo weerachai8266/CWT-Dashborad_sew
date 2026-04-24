@@ -407,15 +407,16 @@ class get_db {
     // คำนวณเปอร์เซ็นต์แบบรายชั่วโมงแล้วเฉลี่ย
     private function calculateHourlyAveragePercentage($start_date, $end_date, $line, $table_name, $hourly_target) {
         try {
-            // ดึงข้อมูลรายชั่วโมงที่มีการผลิต
+            // ดึงข้อมูลรายชั่วโมงที่มีการผลิต (GROUP BY วันและชั่วโมง เพื่อไม่ให้รวมข้ามวัน)
             $query = "SELECT
+                        DATE(created_at) as date,
                         HOUR(created_at) as hour,
                         SUM(qty) as total_qty
                       FROM " . $table_name . "
                       WHERE DATE(created_at) BETWEEN :start_date AND :end_date and status = '10'
-                      GROUP BY HOUR(created_at)
+                      GROUP BY DATE(created_at), HOUR(created_at)
                       HAVING total_qty > 0
-                      ORDER BY hour";
+                      ORDER BY date, hour";
             
             $stmt = $this->conn->prepare($query);
             $stmt->bindParam(':start_date', $start_date);

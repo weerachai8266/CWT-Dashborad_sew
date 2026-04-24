@@ -51,3 +51,6 @@ npm-debug.log*
 .env
 .env.*
 !.env.example
+
+# config
+config/db.php

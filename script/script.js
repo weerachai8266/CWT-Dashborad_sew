@@ -188,14 +188,21 @@ function drawKPIGauge(overallPct, lineData) {
     const kpiStatus  = kpiClamped >= 100 ? 'Excellent' : kpiClamped >= 95 ? 'Good' : kpiClamped >= 85 ? 'Warning' : 'Critical';
 
     // ── Productivity gauge parameters ─────────────────────────
-    const prodMAX  = 10;
-    const prodArcColor = '#17a2b8';                                 // single color
-    const prodSegs = [{ from: 0, to: 10, color: prodArcColor }];
-    const prodTicks = [0, 2, 4, 6, 8, 10];
+    const prodMAX  = 8;
+    const prodSegs = [
+        { from: 0,   to: 3.6, color: PERCENTAGE_COLORS.critical  },
+        { from: 3.6, to: 4.0, color: PERCENTAGE_COLORS.warning   },
+        { from: 4.0, to: 4.3, color: PERCENTAGE_COLORS.good      },
+        { from: 4.3, to: 8,   color: PERCENTAGE_COLORS.excellent },
+    ];
+    const prodTicks = [0, 3.6, 4, 4.3, 8];
     const prodVal   = Math.min(prodRate || 0, prodMAX);
     const prodClamped = Math.min(Math.max(prodVal, 0), prodMAX);
-    const prodColor   = prodArcColor;
-    const prodStatus  = prodVal.toFixed(2);
+    const prodColor   = prodClamped >= 4.3 ? PERCENTAGE_COLORS.excellent
+                      : prodClamped >= 4.0 ? PERCENTAGE_COLORS.good
+                      : prodClamped >= 3.6 ? PERCENTAGE_COLORS.warning
+                      :                      PERCENTAGE_COLORS.critical;
+    const prodStatus  = prodClamped >= 4.3 ? 'Excellent' : prodClamped >= 4.0 ? 'Good' : prodClamped >= 3.6 ? 'Warning' : 'Critical';
 
     if (isMobile) {
         // ── Mobile: KPI gauge top half, productivity below, bars at bottom ──
@@ -230,8 +237,8 @@ function drawKPIGauge(overallPct, lineData) {
                     // { text: 'pcs / man-hr',        color: '#8896a8', size: Math.max(8, Math.round(p2R * 0.085)), baseline: 'bottom', y: p2Y - p2R * 0.08 },
                     { text: 'Productivity',         color: '#8896a8', size: p2LFS, baseline: 'top', y: p2Y + 12 },
                 ],
-                { id: 'productivityGaugeLabel', text: '⚡ ' + prodVal.toFixed(2) + ' pcs/hr',
-                  cls: 'bg-info' }
+                { id: 'productivityGaugeLabel', text: '⚡ ' + prodVal.toFixed(2) + ' — ' + prodStatus,
+                  cls: prodClamped >= 4.3 ? 'bg-primary' : prodClamped >= 4.0 ? 'bg-success' : prodClamped >= 3.6 ? 'bg-warning text-dark' : 'bg-danger' }
             );
         }
 
@@ -313,8 +320,8 @@ function drawKPIGauge(overallPct, lineData) {
                     // { text: 'pcs / man-hr',        color: '#8896a8', size: pUFS, baseline: 'bottom', y: pCY - pR * 0.08 },
                     { text: 'Productivity',         color: '#8896a8', size: pLFS, baseline: 'top',   y: pCY + 14 },
                 ],
-                { id: 'productivityGaugeLabel', text: '⚡ ' + prodVal.toFixed(2) + ' pcs/hr',
-                  cls: 'bg-info' }
+                { id: 'productivityGaugeLabel', text: '⚡ ' + prodVal.toFixed(2) + ' — ' + prodStatus,
+                  cls: prodClamped >= 4.3 ? 'bg-primary' : prodClamped >= 4.0 ? 'bg-success' : prodClamped >= 3.6 ? 'bg-warning text-dark' : 'bg-danger' }
             );
         }
 
