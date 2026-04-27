@@ -301,14 +301,16 @@ document.addEventListener('DOMContentLoaded', async function() {
     window._productivityLastRate = 0;
     await loadProductData();
 
+    // โหลด Quality ใน background หลัง Production เสร็จ
+    loadQualityData();
+
     startRealTimeUpdate();
     toggleDisplayType();
 
-    document.getElementById('production-tab').addEventListener('shown.bs.tab', function() {
-        loadProductData();
-    });
-
-    document.getElementById('quality-tab').addEventListener('shown.bs.tab', function() {
-        loadQualityData();
+    // ใช้ event delegation บน document เพื่อรับ tab events ได้เสมอ
+    // quality-tab: reload เมื่อ user คลิก tab (หรือกด ตกลง)
+    document.addEventListener('shown.bs.tab', function(e) {
+        if (e.target.id === 'quality-tab')    loadQualityData();
+        if (e.target.id === 'production-tab') loadProductData();
     });
 });

@@ -241,8 +241,8 @@
                                     <h6 class="mb-0">📉 KPI Trend — แยกไลน์</h6>
                                     <span id="kpiTrendPeriodLabel" class="badge bg-secondary" style="font-size:0.72rem;"></span>
                                 </div>
-                                <div class="card-body" style="padding:12px 8px;">
-                                    <canvas id="kpiTrendChart" style="width:100%;height:220px;"></canvas>
+                                <div class="card-body" style="padding:12px 8px; position:relative; height:260px;">
+                                    <canvas id="kpiTrendChart"></canvas>
                                 </div>
                             </div>
                         </div>
@@ -253,8 +253,8 @@
                                     <h6 class="mb-0">📊 Overall KPI Trend — ค่าเฉลี่ยรวม</h6>
                                     <span id="kpiAvgTrendPeriodLabel" class="badge bg-secondary" style="font-size:0.72rem;"></span>
                                 </div>
-                                <div class="card-body" style="padding:12px 8px;">
-                                    <canvas id="kpiAvgTrendChart" style="width:100%;height:220px;"></canvas>
+                                <div class="card-body" style="padding:12px 8px; position:relative; height:260px;">
+                                    <canvas id="kpiAvgTrendChart"></canvas>
                                 </div>
                             </div>
                         </div>
@@ -465,9 +465,9 @@
                                 <div class="card-header bg-info text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
                                     <h6 class="mb-0">🎯 Quality KPI Gauge — ภาพรวมคุณภาพการผลิต</h6>
                                     <div class="d-flex gap-3 flex-wrap align-items-center" style="font-size:0.75rem;">
-                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#dc3545;margin-right:4px;"></span>Critical &lt;85%</span>
-                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#ffc107;margin-right:4px;"></span>Warning 85–94%</span>
-                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#28a745;margin-right:4px;"></span>Good ≥95%</span>
+                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#28a745;margin-right:4px;"></span>&lt; 1.7% (Good)</span>
+                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#ffc107;margin-right:4px;"></span>1.7–2.0% (Warning)</span>
+                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#dc3545;margin-right:4px;"></span>&gt; 2.0% (Critical)</span>
                                         <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#fd7e14;margin-right:4px;"></span>Defect Rate</span>
                                     </div>
                                     <div class="d-flex gap-2 align-items-center flex-wrap">
@@ -481,6 +481,26 @@
                             </div>
                         </div>
                     </div>  <!-- End of Quality KPI Gauge -->
+
+                    <!-- Monthly DR Trend Chart -->
+                    <div class="row mt-0 mb-3">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                    <h6 class="mb-0">📊 Defect Rate รายเดือน — ปี <span id="monthlyDrYearLabel"></span></h6>
+                                    <div class="d-flex gap-3 flex-wrap align-items-center" style="font-size:0.75rem;">
+                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#28a745;margin-right:4px;"></span>≤ <span class="dr-threshold-label">1.7</span>% (Good)</span>
+                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#ffc107;margin-right:4px;"></span>≤ 2.0% (Warning)</span>
+                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#dc3545;margin-right:4px;"></span>&gt; 2.0% (Critical)</span>
+                                        <span><span style="display:inline-block;width:9px;height:2px;background:#ffc107;margin-right:4px;vertical-align:middle;"></span>Threshold</span>
+                                    </div>
+                                </div>
+                                <div class="card-body" style="padding:12px 8px; position:relative; height:370px;">
+                                    <canvas id="monthlyDrChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>  <!-- End of Monthly DR Trend Chart -->
 
                     <!-- Charts Container -->
                     <!-- กราฟสรุปของเสียแยกตามไลน์ -->
@@ -708,7 +728,7 @@
                         <span>Production Dashboard &copy; 2025</span>
                     </div>
                     <div class="footer-right">
-                        <span class="footer-version">v2.1 [beta]</span>
+                        <span class="footer-version">v2.2 [beta]</span>
                         <span class="footer-divider">|</span>
                         <span>Powered by weerachai</span>
                     </div>

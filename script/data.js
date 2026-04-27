@@ -808,6 +808,209 @@ async function loadProductData() {
 }
 
 // Load and display quality data
+let monthlyDrChart = null;
+window._monthlyDrMonths = null;
+
+// Plugin: วาดแถวข้อมูลใต้แท่งกราฟ (ตรง x-position เดียวกับแท่ง)
+const drTablePlugin = {
+    id: 'drTablePlugin',
+    afterDraw(chart) {
+        if (chart.canvas.id !== 'monthlyDrChart') return;
+        const months = window._monthlyDrMonths;
+        if (!months || !chart.scales.x) return;
+        const { ctx, scales } = chart;
+        const axisBottom = scales.x.bottom;   // px ล่างสุดของ x-axis (รวม tick labels)
+        const rowH = 16;
+        const y0 = axisBottom + rowH;          // แถว DR%
+        const y1 = axisBottom + rowH * 2 + 2;  // แถว ของเสีย
+        const y2 = axisBottom + rowH * 3 + 4;  // แถว ผลิต
+
+        // Label ซ้าย
+        const lx = scales.x.left - 4;
+        ctx.textAlign = 'right';
+        ctx.font = '9px sans-serif';
+        ctx.fillStyle = '#6c757d';
+        ctx.fillText('DR%', lx, y0);
+        ctx.fillText('เสีย', lx, y1);
+        ctx.fillText('ผลิต', lx, y2);
+
+        months.forEach((m, i) => {
+            const x = scales.x.getPixelForTick(i);
+            ctx.textAlign = 'center';
+
+            // DR%
+            const drColor = m.dr === null ? '#6c757d'
+                : m.dr <= DR_THRESHOLD            ? '#28a745'
+                : m.dr <= DR_THRESHOLD * 1.18     ? '#ffc107'
+                : '#dc3545';
+            ctx.fillStyle = drColor;
+            ctx.font = 'bold 10px sans-serif';
+            ctx.fillText(m.dr !== null ? m.dr.toFixed(2) + '%' : '-', x, y0);
+
+            // ของเสีย
+            ctx.fillStyle = 'rgba(220,53,69,0.75)';
+            ctx.font = '10px sans-serif';
+            ctx.fillText(m.defect_qty > 0 ? m.defect_qty.toLocaleString() : '-', x, y1);
+
+            // ผลิต
+            ctx.fillStyle = '#8896a8';
+            ctx.fillText(m.prod_qty > 0 ? m.prod_qty.toLocaleString() : '-', x, y2);
+        });
+    }
+};
+
+async function loadMonthlyDrChart() {
+    const year = new Date().getFullYear();
+    const yearLabel = document.getElementById('monthlyDrYearLabel');
+    if (yearLabel) yearLabel.textContent = year;
+
+    // อัปเดต label threshold ใน legend ให้ตรงกับ config
+    document.querySelectorAll('.dr-threshold-label').forEach(el => {
+        el.textContent = DR_THRESHOLD;
+    });
+
+    try {
+        const resp = await fetch(`api/get_monthly_dr.php?year=${year}`);
+        const result = await resp.json();
+        if (!result.success) return;
+
+        const months   = result.months;
+        const labels   = months.map(m => m.label);
+        const drValues = months.map(m => m.dr);
+
+        // สี bar ตาม threshold (opacity ลดลงให้ดูโปร่งแสง)
+        const barBg = drValues.map(v =>
+            v === null      ? 'rgba(100,100,100,0.18)'
+            : v <= DR_THRESHOLD      ? 'rgba(40,167,69,0.38)'
+            : v <= DR_THRESHOLD * 1.18 ? 'rgba(255,193,7,0.38)'
+            :                           'rgba(220,53,69,0.38)'
+        );
+        const barBorder = barBg.map(c => c.replace(/[\d.]+\)$/, '1)'));
+
+        const thresholdLine = labels.map(() => DR_THRESHOLD);
+
+        // ค่าเฉลี่ย DR ทุกเดือนที่มีข้อมูล
+        const validDr   = drValues.filter(v => v !== null);
+        const avgDr     = validDr.length
+            ? Math.round(validDr.reduce((a, b) => a + b, 0) / validDr.length * 100) / 100
+            : null;
+        const avgLine   = labels.map(() => avgDr);
+        const avgColor  = avgDr === null ? '#8896a8'
+                        : avgDr <= DR_THRESHOLD ? '#28a745'
+                        : avgDr <= DR_THRESHOLD * 1.18 ? '#ff6207'
+                        : '#dc3545';
+
+        const datasets = [
+            {
+                type: 'bar',
+                label: 'Defect Rate (%)',
+                data: drValues,
+                backgroundColor: barBg,
+                borderColor: barBorder,
+                borderWidth: 2,
+                borderRadius: 4,
+                order: 2,
+            },
+            {
+                type: 'line',
+                label: `Target ${DR_THRESHOLD}%`,
+                data: thresholdLine,
+                borderColor: '#ff6207',
+                borderWidth: 2,
+                borderDash: [6, 4],
+                pointRadius: 0,
+                pointHoverRadius: 0,
+                fill: false,
+                order: 1,
+            },
+            {
+                type: 'line',
+                label: avgDr !== null ? `เฉลี่ย ${avgDr.toFixed(2)}%` : 'เฉลี่ย',
+                data: avgLine,
+                borderColor: avgColor,
+                borderWidth: 2,
+                borderDash: [3, 3],
+                pointRadius: 0,
+                pointHoverRadius: 0,
+                fill: false,
+                order: 1,
+            },
+        ];
+
+        window._monthlyDrMonths = months;
+
+        const canvas = document.getElementById('monthlyDrChart');
+        if (!canvas) return;
+
+        if (monthlyDrChart) {
+            monthlyDrChart.data.labels = labels;
+            monthlyDrChart.data.datasets[0].data            = drValues;
+            monthlyDrChart.data.datasets[0].backgroundColor = barBg;
+            monthlyDrChart.data.datasets[0].borderColor     = barBorder;
+            monthlyDrChart.data.datasets[1].data            = thresholdLine;
+            monthlyDrChart.data.datasets[1].label           = `Target ${DR_THRESHOLD}%`;
+            monthlyDrChart.data.datasets[2].data            = avgLine;
+            monthlyDrChart.data.datasets[2].label           = avgDr !== null ? `เฉลี่ย ${avgDr.toFixed(2)}%` : 'เฉลี่ย';
+            monthlyDrChart.data.datasets[2].borderColor     = avgColor;
+            monthlyDrChart.update('none');
+        } else {
+            monthlyDrChart = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { color: '#8896a8', boxWidth: 14, padding: 14 }
+                        },
+                        datalabels: {
+                            display: ctx => ctx.datasetIndex === 0 && ctx.dataset.data[ctx.dataIndex] !== null,
+                            anchor: 'start',
+                            align: 'end',
+                            offset: 4,
+                            color: '#ffffff',
+                            font: { size: 11, weight: 'bold' },
+                            formatter: v => v === null ? '' : v.toFixed(2) + '%',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => {
+                                    if (ctx.datasetIndex === 1) return ` Target: ${DR_THRESHOLD}%`;
+                                    if (ctx.datasetIndex === 2) return avgDr !== null ? ` เฉลี่ย: ${avgDr.toFixed(2)}%` : ' เฉลี่ย: -';
+                                    const m = months[ctx.dataIndex];
+                                    return [
+                                        ` DR: ${m.dr !== null ? m.dr.toFixed(2) + '%' : 'ไม่มีข้อมูล'}`,
+                                        ` ของเสีย: ${m.defect_qty.toLocaleString()} ชิ้น`,
+                                        ` ผลผลิต: ${m.prod_qty.toLocaleString()} ชิ้น`,
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    layout: { padding: { bottom: 58 } },
+                    scales: {
+                        x: {
+                            ticks: { color: '#8896a8' },
+                            grid: { color: 'rgba(255,255,255,0.05)' }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 2.5,
+                            ticks: { color: '#8896a8', callback: v => v + '%' },
+                            grid: { color: 'rgba(255,255,255,0.05)' }
+                        }
+                    }
+                },
+                plugins: [ChartDataLabels, drTablePlugin]
+            });
+        }
+    } catch (e) {
+        console.error('Monthly DR chart error:', e);
+    }
+}
+
 async function loadQualityData() {
     try {
         await fetchQualityData();
@@ -827,6 +1030,9 @@ async function loadQualityData() {
         } else {
             console.error('API Error:', data.message);
         }
+
+        // โหลดกราฟ DR รายเดือน (ไม่ขึ้นกับ filter date)
+        loadMonthlyDrChart();
 
     } catch (error) {
         console.error('Error loading report data:', error);

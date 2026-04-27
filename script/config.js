@@ -34,6 +34,14 @@ const LINE_NAMES = {
     sub: 'Sub'
 };
 
+// Defect Rate threshold — ปรับได้ทุกปี (หน่วย: %)
+const DR_THRESHOLD      = 1.7;   // DR ≤ ค่านี้ = Good
+const DR_WARN_THRESHOLD = 2.0;   // DR ≤ ค่านี้ = Warning (> ค่านี้ = Critical)
+
+// Quality Rate threshold — สัมพันธ์กับ DR (zone ratio ≈ DR red:yellow = 62.5%:37.5%)
+const QR_GOOD_THRESHOLD = 98;   // QR ≥ ค่านี้ = Good   (green zone ~18° wide)
+const QR_WARN_THRESHOLD = 96;   // QR ≥ ค่านี้ = Warning (yellow zone ~12° wide, 95 อยู่ที่ 30° จากขวา)
+
 // Color coding for percentage
 const PERCENTAGE_COLORS = {
     critical: '#dc3545',    // 0-84%

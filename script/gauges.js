@@ -342,8 +342,8 @@ function drawQualityKPIGauge(overallQuality, overallDefect, lineData) {
     const W = cssW, H = cssH;
 
     // ── helper: draw one half-circle speedometer ──────────────
-    function drawSpeedometer(cx, cy, R, arcW, value, MAX, segments, ticks, centerLines, badge) {
-        const toA = v => Math.PI * (1 + v / MAX);
+    function drawSpeedometer(cx, cy, R, arcW, value, MAX, MIN, segments, ticks, centerLines, badge) {
+        const toA = v => Math.PI * (1 + (v - MIN) / (MAX - MIN));
         ctx.beginPath();
         ctx.arc(cx, cy, R, Math.PI, 0, false);
         ctx.strokeStyle = 'rgba(255,255,255,0.07)';
@@ -375,7 +375,7 @@ function drawQualityKPIGauge(overallQuality, overallDefect, lineData) {
             ctx.textBaseline = 'middle';
             ctx.fillText(t.label, cx + lR * cos, cy + lR * sin);
         });
-        const clamped = Math.min(Math.max(value, 0), MAX);
+        const clamped = Math.min(Math.max(value, MIN), MAX);
         const needleA = toA(clamped);
         const nLen  = R - arcW / 2 - 6;
         const nTail = R * 0.14;
@@ -415,33 +415,41 @@ function drawQualityKPIGauge(overallQuality, overallDefect, lineData) {
     }
 
     // ── Quality Rate gauge parameters ─────────────────────────
+    const qMIN   = 80;
     const qMAX   = 100;
     const qSegs  = [
-        { from: 0,  to: 84,  color: PERCENTAGE_COLORS.critical },
-        { from: 84, to: 95,  color: PERCENTAGE_COLORS.warning  },
-        { from: 95, to: 100, color: PERCENTAGE_COLORS.good     },
+        { from: qMIN,              to: QR_WARN_THRESHOLD, color: PERCENTAGE_COLORS.critical },
+        { from: QR_WARN_THRESHOLD, to: QR_GOOD_THRESHOLD, color: PERCENTAGE_COLORS.warning  },
+        { from: QR_GOOD_THRESHOLD, to: 100,               color: PERCENTAGE_COLORS.good     },
     ];
-    const qTicks = [0, 84, 95, 100];
+    const qTicks = [
+        { val: qMIN,               label: qMIN + '%' },
+        { val: QR_WARN_THRESHOLD,  label: QR_WARN_THRESHOLD + '%' },
+        { val: QR_GOOD_THRESHOLD,  label: QR_GOOD_THRESHOLD + '%' },
+        { val: 100,                label: '100%' },
+    ];
     const qClamped = Math.min(Math.max(overallQuality, 0), qMAX);
-    const qColor   = qClamped >= 95 ? PERCENTAGE_COLORS.good
-                   : qClamped >= 85 ? PERCENTAGE_COLORS.warning
-                   :                  PERCENTAGE_COLORS.critical;
-    const qStatus  = qClamped >= 95 ? 'Good' : qClamped >= 85 ? 'Warning' : 'Critical';
+    const qColor   = qClamped >= QR_GOOD_THRESHOLD ? PERCENTAGE_COLORS.good
+                   : qClamped >= QR_WARN_THRESHOLD  ? PERCENTAGE_COLORS.warning
+                   :                                  PERCENTAGE_COLORS.critical;
+    const qStatus  = qClamped >= QR_GOOD_THRESHOLD ? 'Good'
+                   : qClamped >= QR_WARN_THRESHOLD  ? 'Warning' : 'Critical';
 
     // ── Defect Rate gauge parameters ──────────────────────────
-    const dMAX   = 5;
+    const dMAX   = 2.5;
     const dSegs  = [
-        { from: 0, to: 1,  color: PERCENTAGE_COLORS.good     },
-        { from: 1, to: 3,  color: PERCENTAGE_COLORS.warning  },
-        { from: 3, to: 5,  color: PERCENTAGE_COLORS.critical },
+        { from: 0,                to: DR_THRESHOLD,      color: PERCENTAGE_COLORS.good     },
+        { from: DR_THRESHOLD,      to: DR_WARN_THRESHOLD, color: PERCENTAGE_COLORS.warning  },
+        { from: DR_WARN_THRESHOLD, to: 2.5,               color: PERCENTAGE_COLORS.critical },
     ];
-    const dTicks   = [0, 1, 3, 5];
+    const dTicks   = [0, DR_THRESHOLD, DR_WARN_THRESHOLD, 2.5];
     const dVal     = Math.min(overallDefect || 0, dMAX);
     const dClamped = dVal;
-    const defColor = dClamped <= 1 ? PERCENTAGE_COLORS.good
-                   : dClamped <= 3 ? PERCENTAGE_COLORS.warning
-                   :                 PERCENTAGE_COLORS.critical;
-    const dStatus  = dClamped <= 1 ? 'Good' : dClamped <= 3 ? 'Warning' : 'Critical';
+    const defColor = dClamped <= DR_THRESHOLD      ? PERCENTAGE_COLORS.good
+                   : dClamped <= DR_WARN_THRESHOLD  ? PERCENTAGE_COLORS.warning
+                   :                                  PERCENTAGE_COLORS.critical;
+    const dStatus  = dClamped <= DR_THRESHOLD      ? 'Good'
+                   : dClamped <= DR_WARN_THRESHOLD  ? 'Warning' : 'Critical';
 
     if (isMobile) {
         // ── Mobile: Quality top, Defect center, bars bottom ──
@@ -449,27 +457,27 @@ function drawQualityKPIGauge(overallQuality, overallDefect, lineData) {
         const qCX = W / 2, qCY = halfH * 0.84;
         const qR  = Math.min((qCX - 18) / 1.22, qCY * 0.72);
         const qAW = Math.round(qR * 0.40);
-        drawSpeedometer(qCX, qCY, qR, qAW, overallQuality, qMAX, qSegs,
-            qTicks.map(v => ({ val: v, label: v + '%' })),
+        drawSpeedometer(qCX, qCY, qR, qAW, overallQuality, qMAX, qMIN, qSegs,
+            qTicks,
             [
                 { text: overallQuality.toFixed(1) + '%', color: qColor, size: Math.max(18, Math.round(qR * 0.20)), bold: true, baseline: 'bottom', y: qCY - qR * 0.28 },
                 { text: 'Quality Rate', color: '#8896a8', size: Math.max(9, Math.round(qR * 0.085)), baseline: 'top', y: qCY + 14 },
             ],
             { id: 'qualityKpiGaugeLabel', text: overallQuality.toFixed(1) + '% — ' + qStatus,
-              cls: qClamped >= 95 ? 'bg-success' : qClamped >= 85 ? 'bg-warning text-dark' : 'bg-danger' }
+              cls: qClamped >= QR_GOOD_THRESHOLD ? 'bg-success' : qClamped >= QR_WARN_THRESHOLD ? 'bg-warning text-dark' : 'bg-danger' }
         );
 
         const p2Y  = halfH + Math.round((H - halfH) * 0.5);
         const p2R  = Math.min(qCX - 18, (H - halfH) * 0.38);
         const p2AW = Math.round(p2R * 0.40);
-        drawSpeedometer(qCX, p2Y, p2R, p2AW, dVal, dMAX, dSegs,
+        drawSpeedometer(qCX, p2Y, p2R, p2AW, dVal, dMAX, 0, dSegs,
             dTicks.map(v => ({ val: v, label: v + '%' })),
             [
                 { text: dVal.toFixed(2) + '%', color: defColor, size: Math.max(14, Math.round(p2R * 0.20)), bold: true, baseline: 'bottom', y: p2Y - p2R * 0.28 },
                 { text: 'Defect Rate', color: '#8896a8', size: Math.max(8, Math.round(p2R * 0.082)), baseline: 'top', y: p2Y + 12 },
             ],
             { id: 'qualityDefectGaugeLabel', text: dVal.toFixed(2) + '% — ' + dStatus,
-              cls: dClamped <= 2 ? 'bg-success' : dClamped <= 5 ? 'bg-warning text-dark' : 'bg-danger' }
+              cls: dClamped <= 1.7 ? 'bg-success' : dClamped <= 2.0 ? 'bg-warning text-dark' : 'bg-danger' }
         );
 
     } else {
@@ -484,14 +492,14 @@ function drawQualityKPIGauge(overallQuality, overallDefect, lineData) {
         const qR  = Math.min((qCX - 20) / 1.22, qCY * 0.72);
         const qAW = Math.round(qR * 0.40);
 
-        drawSpeedometer(qCX, qCY, qR, qAW, overallQuality, qMAX, qSegs,
-            qTicks.map(v => ({ val: v, label: v + '%' })),
+        drawSpeedometer(qCX, qCY, qR, qAW, overallQuality, qMAX, qMIN, qSegs,
+            qTicks,
             [
                 { text: overallQuality.toFixed(1) + '%', color: qColor, size: Math.max(20, Math.round(qR * 0.20)), bold: true, baseline: 'bottom', y: qCY - qR * 0.28 },
                 { text: 'Quality Rate', color: '#8896a8', size: Math.max(10, Math.round(qR * 0.085)), baseline: 'top', y: qCY + 16 },
             ],
             { id: 'qualityKpiGaugeLabel', text: overallQuality.toFixed(1) + '% — ' + qStatus,
-              cls: qClamped >= 95 ? 'bg-success' : qClamped >= 85 ? 'bg-warning text-dark' : 'bg-danger' }
+              cls: qClamped >= QR_GOOD_THRESHOLD ? 'bg-success' : qClamped >= QR_WARN_THRESHOLD ? 'bg-warning text-dark' : 'bg-danger' }
         );
 
         // Divider left|center
@@ -507,14 +515,14 @@ function drawQualityKPIGauge(overallQuality, overallDefect, lineData) {
         const dVFS = Math.max(16, Math.round(dR * 0.20));
         const dLFS = Math.max(9,  Math.round(dR * 0.082));
 
-        drawSpeedometer(dCX, dCY, dR, dAW, dVal, dMAX, dSegs,
+        drawSpeedometer(dCX, dCY, dR, dAW, dVal, dMAX, 0, dSegs,
             dTicks.map(v => ({ val: v, label: v + '%' })),
             [
                 { text: dVal.toFixed(2) + '%', color: defColor, size: dVFS, bold: true, baseline: 'bottom', y: dCY - dR * 0.28 },
                 { text: 'Defect Rate',          color: '#8896a8', size: dLFS, baseline: 'top', y: dCY + 14 },
             ],
             { id: 'qualityDefectGaugeLabel', text: dVal.toFixed(2) + '% — ' + dStatus,
-              cls: dClamped <= 2 ? 'bg-success' : dClamped <= 5 ? 'bg-warning text-dark' : 'bg-danger' }
+              cls: dClamped <= 1.7 ? 'bg-success' : dClamped <= 2.0 ? 'bg-warning text-dark' : 'bg-danger' }
         );
 
         // Divider center|bars
