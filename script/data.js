@@ -962,7 +962,8 @@ async function loadMonthlyDrChart() {
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            position: 'top',
+                            position: 'right',
+                            align: 'center',
                             labels: { color: '#8896a8', boxWidth: 14, padding: 14 }
                         },
                         datalabels: {

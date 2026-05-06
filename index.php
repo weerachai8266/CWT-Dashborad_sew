@@ -9,7 +9,7 @@
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=<?= filemtime('css/style.css') ?>">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -725,7 +725,7 @@
                         <span>Leather Seats and Auto Parts</span>
                     </div>
                     <div class="footer-center">
-                        <span>Production Dashboard &copy; 2025</span>
+                        <span>Production Dashboard &copy; 2025&ndash;<span id="copyright-year"></span></span>
                     </div>
                     <div class="footer-right">
                         <span class="footer-version">v2.2 [beta]</span>
@@ -747,11 +747,12 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="script/config.js"></script>
-    <script src="script/gauges.js"></script>
-    <script src="script/charts.js"></script>
-    <script src="script/data.js"></script>
-    <script src="script/ui.js"></script>
-    <script src="script/ai_report.js"></script>
+    <script src="script/config.js?v=<?= filemtime('script/config.js') ?>"></script>
+    <script src="script/gauges.js?v=<?= filemtime('script/gauges.js') ?>"></script>
+    <script src="script/charts.js?v=<?= filemtime('script/charts.js') ?>"></script>
+    <script src="script/data.js?v=<?= filemtime('script/data.js') ?>"></script>
+    <script src="script/ui.js?v=<?= filemtime('script/ui.js') ?>"></script>
+    <script src="script/ai_report.js?v=<?= filemtime('script/ai_report.js') ?>"></script>
+    <script>document.getElementById('copyright-year').textContent = new Date().getFullYear();</script>
 </body>
 </html>

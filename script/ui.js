@@ -250,9 +250,9 @@ function addChartTooltips() {
                         if (currentDisplayType === 'percentage') {
                             const percentage = context.parsed.y;
                             let status = '';
-                            if (percentage >= 101) status = '🔵 เกินเป้าหมาย';
-                            else if (percentage >= 95) status = '🟢 ตามเป้าหมาย';
-                            else if (percentage >= 85) status = '🟡 ใกล้เป้าหมาย';
+                            if (percentage >= PERF_THRESHOLD_EXCELLENT) status = '🔵 เกินเป้าหมาย';
+                            else if (percentage >= PERF_THRESHOLD_GOOD)      status = '🟢 ตามเป้าหมาย';
+                            else if (percentage >= PERF_THRESHOLD_WARNING)   status = '🟡 ใกล้เป้าหมาย';
                             else status = '🔴 ต่ำกว่าเป้าหมาย';
 
                             return status;

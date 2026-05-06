@@ -415,7 +415,7 @@ function drawQualityKPIGauge(overallQuality, overallDefect, lineData) {
     }
 
     // ── Quality Rate gauge parameters ─────────────────────────
-    const qMIN   = 80;
+    const qMIN   = 85;
     const qMAX   = 100;
     const qSegs  = [
         { from: qMIN,              to: QR_WARN_THRESHOLD, color: PERCENTAGE_COLORS.critical },
