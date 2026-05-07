@@ -261,9 +261,9 @@ body {
     position: absolute;
     top: 5px;
     right: 5px;
-    padding: 3px 9px;
-    border-radius: 10px;
-    font-size: 13px;
+    padding: 2px 7px;
+    border-radius: 8px;
+    font-size: 11px;
     font-weight: bold;
     color: white;
 }
@@ -683,6 +683,107 @@ tr.qt-summary td:first-child {
 .preview-dot.warning { background: var(--warning-color); }
 .preview-dot.good { background: var(--good-color); }
 .preview-dot.excellent { background: var(--excellent-color); }
+.formula-main {
+    width: 100%;
+}
+.formula-topic-card,
+.formula-placeholder {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.02);
+}
+.formula-overview-text {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.7;
+    margin-bottom: 14px;
+}
+.formula-topic-card {
+    min-height: 86px;
+    padding: 14px;
+}
+.formula-topic-title {
+    color: #a3c0f8;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+.formula-section-card {
+    overflow: hidden;
+}
+.formula-placeholder {
+    padding: 14px;
+}
+.formula-placeholder + .formula-placeholder {
+    margin-top: 12px;
+}
+.formula-placeholder h6 {
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+.formula-placeholder p {
+    color: var(--text-muted);
+    margin-bottom: 0;
+    font-size: 0.88rem;
+}
+.formula-block {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.02);
+    padding: 14px;
+}
+.formula-block + .formula-block {
+    margin-top: 12px;
+}
+.formula-block h6 {
+    color: #a3c0f8;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+.formula-block p {
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    font-size: 0.88rem;
+}
+.formula-code {
+    background: rgba(17,19,24,0.68);
+    border: 1px solid rgba(91,141,238,0.18);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-family: 'Poppins', 'Kanit', sans-serif;
+    font-size: 0.86rem;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+}
+.formula-notes {
+    color: var(--text-muted);
+    font-size: 0.84rem;
+    margin: 0 0 10px;
+    padding-left: 18px;
+}
+.formula-notes li {
+    margin-bottom: 4px;
+}
+.formula-example {
+    border-left: 3px solid var(--accent-green);
+    background: rgba(52,199,128,0.07);
+    color: #b8f0d1;
+    border-radius: 6px;
+    font-size: 0.84rem;
+    padding: 9px 11px;
+    margin-bottom: 10px;
+}
+.formula-threshold {
+    color: #f5c842;
+    background: rgba(240,180,41,0.08);
+    border-radius: 6px;
+    font-size: 0.84rem;
+    padding: 9px 11px;
+}
+.formula-threshold code,
+.formula-notes code {
+    color: #a3c0f8;
+}
 .config-page .modal-content {
     background: var(--bg-card);
     border: 1px solid var(--border);

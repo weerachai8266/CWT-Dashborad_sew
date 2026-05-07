@@ -2,12 +2,12 @@
 session_start();
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
-include __DIR__ . '/config/db.php';
-require_once __DIR__ . '/config/app.php';
+include __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../config/app.php';
 
 const CONFIG_PAGE_PASSWORD = 'cwtconfig';
-const SHIFT_CONFIG_FILE = __DIR__ . '/config/shift_times.json';
-const KPI_CONFIG_FILE = __DIR__ . '/config/kpi_thresholds.json';
+const SHIFT_CONFIG_FILE = __DIR__ . '/../config/shift_times.json';
+const KPI_CONFIG_FILE = __DIR__ . '/../config/kpi_thresholds.json';
 
 function h($value) {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
@@ -192,9 +192,9 @@ if ($is_authenticated) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Config - CWT Production</title>
-    <link rel="icon" href="img/favicon_circular.ico" type="image/x-icon">
+    <link rel="icon" href="../img/favicon_circular.ico" type="image/x-icon">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=<?= filemtime('css/style.css') ?>">
+    <link rel="stylesheet" href="../css/style.css?v=<?= filemtime(__DIR__ . '/../css/style.css') ?>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -208,7 +208,7 @@ if ($is_authenticated) {
                         title="เมนู" aria-label="Toggle menu">
                     <i class="fas fa-bars"></i>
                 </button>
-                <img src="img/cwt_old-3d.png" alt="CWT Logo" loading="lazy" class="me-3" style="height:70px;">
+                <img src="../img/cwt_old-3d.png" alt="CWT Logo" loading="lazy" class="me-3" style="height:70px;">
                 <div class="navbar-brand d-none d-md-block">
                     <h5 class="mb-0 fw-semibold text-primary">Chaiwattana</h5>
                     <small class="text-muted">Tannery Group</small>
@@ -226,7 +226,7 @@ if ($is_authenticated) {
                 <?php if ($is_authenticated): ?>
                     <a href="config.php?logout=1" class="btn btn-outline-danger btn-sm">ออกจากระบบ</a>
                 <?php endif; ?>
-                <img src="img/cwt-3d.png" alt="CWT Logo" loading="lazy" class="d-none d-md-block" style="height:80px;">
+                <img src="../img/cwt-3d.png" alt="CWT Logo" loading="lazy" class="d-none d-md-block" style="height:80px;">
             </div>
         </div>
     </nav>
@@ -239,20 +239,23 @@ if ($is_authenticated) {
             </button>
             <ul class="nav flex-column">
                 <li class="nav-item">
-                    <a class="nav-link" href="index.php#production" title="Production">📊 <span class="nav-text">Production</span></a>
+                    <a class="nav-link" href="../index.php#production" title="Production">📊 <span class="nav-text">Production</span></a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="index.php#quality" title="Quality">✅ <span class="nav-text">Quality</span></a>
+                    <a class="nav-link" href="../index.php#quality" title="Quality">✅ <span class="nav-text">Quality</span></a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="index.php#aireport" title="AI Report">🤖 <span class="nav-text">AI Report <span class="badge bg-warning text-dark ms-1" style="font-size:0.6rem;">beta</span></span></a>
+                    <a class="nav-link" href="../index.php#aireport" title="AI Report">🤖 <span class="nav-text">AI Report <span class="badge bg-warning text-dark ms-1" style="font-size:0.6rem;">beta</span></span></a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="formulas.php" title="Formulas">🧮 <span class="nav-text">Formulas</span></a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link active" href="config.php" title="Config">⚙️ <span class="nav-text">Config</span></a>
                 </li>
             </ul>
             <div class="sidebar-logo-bottom nav-text">
-                <img src="img/cwt_old-3d.png" alt="CWT Logo" loading="lazy">
+                <img src="../img/cwt_old-3d.png" alt="CWT Logo" loading="lazy">
             </div>
         </nav>
 

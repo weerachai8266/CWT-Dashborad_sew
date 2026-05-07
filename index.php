@@ -93,7 +93,10 @@
                     <a class="nav-link" id="aireport-tab" data-bs-toggle="tab" href="#aireport" role="tab" title="AI Report">🤖 <span class="nav-text">AI Report <span class="badge bg-warning text-dark ms-1" style="font-size:0.6rem;">beta</span></span></a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="config.php" title="Config">⚙️ <span class="nav-text">Config</span></a>
+                    <a class="nav-link" href="pages/formulas.php" title="Formulas">🧮 <span class="nav-text">Formulas</span></a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="pages/config.php" title="Config">⚙️ <span class="nav-text">Config</span></a>
                 </li>
             </ul>
             <!-- Sidebar bottom logo -->
