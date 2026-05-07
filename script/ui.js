@@ -155,9 +155,6 @@ function initExportButtons() {
                                 case 'quality':
                                     url = `api/export_quality.php?start_date=${start}&end_date=${end}`;
                                     break;
-                                case 'performance':
-                                    url = `api/export_performance.php?start_date=${start}&end_date=${end}`;
-                                    break;
                                 default:
                                     url = `api/export_${module}.php?start_date=${start}&end_date=${end}`;
                             }
@@ -178,17 +175,6 @@ document.getElementById('production_btnFilter').addEventListener('click', async 
 
 document.getElementById('quality_btnFilter').addEventListener('click', async function() {
     await loadQualityData();
-});
-
-document.getElementById('btnExport').addEventListener('click', function(e) {
-    e.preventDefault();
-
-    const startDate = document.getElementById('report_date_start').value;
-    const endDate = document.getElementById('report_date_end').value;
-    const displayType = currentDisplayType;
-
-    const exportUrl = `api/export_excel.php?start_date=${startDate}&end_date=${endDate}&display_type=${displayType}`;
-    window.open(exportUrl, '_blank');
 });
 
 document.getElementById('realTimeUpdate').addEventListener('change', function() {
@@ -265,20 +251,6 @@ function addChartTooltips() {
     });
 }
 
-// Update chart tooltips when display type changes
-function updateChartTooltips() {
-    addChartTooltips();
-    Object.values(charts).forEach(chart => {
-        if (chart) {
-            chart.update('none');
-        }
-    });
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    window.addEventListener('resize', () => setTimeout(equalizeChartCards, 100));
-});
-
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async function() {
     const today = new Date().toISOString().split('T')[0];
@@ -290,9 +262,6 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     document.getElementById('quality_date_start').value = firstOfMonth;
     document.getElementById('quality_date_end').value = today;
-
-    document.getElementById('report_date_start').value = firstOfMonth;
-    document.getElementById('report_date_end').value = today;
 
     initExportButtons();
     initializeCharts();

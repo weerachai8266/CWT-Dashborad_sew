@@ -15,9 +15,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
@@ -48,6 +45,13 @@
     <nav class="navbar navbar-expand-lg fixed-top px-3">
         <div class="container-fluid">
             <div class="d-flex align-items-center">
+                <!-- Hamburger สำหรับ mobile เท่านั้น -->
+                <button class="btn btn-sm d-md-none me-2" id="mobileSidebarToggle"
+                        style="color:var(--text-muted);border:1px solid var(--border);padding:6px 10px;"
+                        title="เมนู" aria-label="Toggle menu">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <!-- end Hamburger -->
                 <img src="img/cwt_old-3d.png" alt="CWT Logo" loading="lazy" class="me-3" style="height: 70px;">
                 <div class="navbar-brand d-none d-md-block">
                     <h5 class="mb-0 fw-semibold text-primary">Chaiwattana</h5>
@@ -97,7 +101,7 @@
         <!-- Main Content -->
         <div class="main-content">
             <div class="tab-content">
-                <!-- Dashboard Tab -->
+                <!-- Production Tab -->
                 <div class="tab-pane fade show active" id="production" role="tabpanel">
                     <!-- production Filter -->
                     <div class="d-flex flex-wrap align-items-center gap-2 py-2 px-1 position-relative" id="production-filter-form">
@@ -151,53 +155,53 @@
                     </div>  <!-- End of production Filter -->
                      
                     <!-- Summary Statistics -->
-                    <!-- เดี๋ยวกลับมาแก้ฟังก์ชั่นนี้ -->
                     <div class="row mt-0">
                         <div class="col-12 mb-3">
                             <div class="card">
-                                <div class="card-header bg-info text-white">
+                                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
                                     <h6 class="mb-0">📋 สรุปผลรวม</h6>
+                                    <span id="summaryDateLabel" class="badge bg-secondary" style="font-size:0.72rem;"></span>
                                 </div>
                                 <div class="card-body">
                                     <div class="row text-center">
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="fc">
-                                                <h5 class="text-success" id="totalFC">0</h5>
+                                                <h4 class="text-success" id="totalFC">0</h4>
                                                 <small id="labelFC">F/C ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentageFC"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="fb">
-                                                <h5 class="text-warning" id="totalFB">0</h5>
+                                                <h4 class="text-warning" id="totalFB">0</h4>
                                                 <small id="labelFB">F/B ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentageFB"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="rc">
-                                                <h5 class="text-danger" id="totalRC">0</h5>
+                                                <h4 class="text-danger" id="totalRC">0</h4>
                                                 <small id="labelRC">R/C ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentageRC"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="rb">
-                                                <h5 style="color: #6f42c1;" id="totalRB">0</h5>
+                                                <h4 style="color: #6f42c1;" id="totalRB">0</h4>
                                                 <small id="labelRB">R/B ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentageRB"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="third">
-                                                <h5 style="color: #fd7e14;" id="total3RD">0</h5>
+                                                <h4 style="color: #fd7e14;" id="total3RD">0</h4>
                                                 <small id="label3RD">3RD ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentage3RD"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="sub">
-                                                <h5 style="color: #20c997;" id="totalSUB">0</h5>
+                                                <h4 style="color: #20c997;" id="totalSUB">0</h4>
                                                 <small id="labelSUB">Sub ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentageSUB"></span>
                                             </div>
@@ -220,10 +224,11 @@
                                         <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#28a745;margin-right:4px;"></span>Good 95–100%</span>
                                         <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#007bff;margin-right:4px;"></span>Excellent &gt;100%</span>
                                     </div>
-                                    <div class="d-flex gap-2 align-items-center flex-wrap">
+                                    <!-- <div class="d-flex gap-2 align-items-center flex-wrap">
                                         <span id="kpiGaugeLabel" class="badge bg-secondary fs-6 px-3 py-1">--</span>
                                         <span id="productivityGaugeLabel" class="badge bg-secondary fs-6 px-3 py-1">⚡ --</span>
-                                    </div>
+                                    </div> -->
+                                    <span id="gaugeDateLabel" class="badge bg-secondary" style="font-size:0.72rem;"></span>
                                 </div>
                                 <div class="card-body p-0" style="background:transparent;">
                                     <canvas id="kpiGaugeCanvas" style="width:100%;display:block;"></canvas>
@@ -381,11 +386,11 @@
                         </div>
                     </div>  
                     <!-- end of Model Summary Card -->
-                </div>  <!-- End of Dashboard Tab -->
+                </div>  <!-- End of Production Tab -->
 
-                <!-- quality Data Tab -->
+                <!-- Quality Data Tab -->
                 <div class="tab-pane fade" id="quality" role="tabpanel">
-                    <!-- quality Filter -->
+                    <!-- Quality Filter -->
                     <div class="d-flex flex-wrap align-items-center gap-2 py-2 px-1" id="quality-filter-form">
                         <!-- Date Range -->
                         <div class="input-group input-group-sm" style="width:auto;">
@@ -399,7 +404,7 @@
                             <button id="quality_btnFilter" class="btn btn-primary btn-sm">ตกลง</button>
                             <button class="btn btn-success btn-sm btn-export-date" data-module="quality">Export</button>
                         </div>
-                    </div>  <!-- End of quality Filter -->                    
+                    </div>  <!-- End of Quality Filter -->                    
 
                     <!-- <hr class="my-2"> -->
                     <div class="row mt-0">
@@ -412,42 +417,42 @@
                                     <div class="row text-center">
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="fc">
-                                                <h5 class="text-success" id="qualityFC">0</h5>
+                                                <h4 class="text-success" id="qualityFC">0</h4>
                                                 <small id="labelqualityFC">F/C ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentagequalityFC"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="fb">
-                                                <h5 class="text-warning" id="qualityFB">0</h5>
+                                                <h4 class="text-warning" id="qualityFB">0</h4>
                                                 <small id="labelqualityFB">F/B ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentagequalityFB"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="rc">
-                                                <h5 class="text-danger" id="qualityRC">0</h5>
+                                                <h4 class="text-danger" id="qualityRC">0</h4>
                                                 <small id="labelqualityRC">R/C ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentagequalityRC"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="rb">
-                                                <h5 style="color: #6f42c1;" id="qualityRB">0</h5>
+                                                <h4 style="color: #6f42c1;" id="qualityRB">0</h4>
                                                 <small id="labelqualityRB">R/B ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentagequalityRB"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="third">
-                                                <h5 style="color: #fd7e14;" id="quality3RD">0</h5>
+                                                <h4 style="color: #fd7e14;" id="quality3RD">0</h4>
                                                 <small id="labelquality3RD">3RD ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentagequality3RD"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="sub">
-                                                <h5 style="color: #20c997;" id="qualitySUB">0</h5>
+                                                <h4 style="color: #20c997;" id="qualitySUB">0</h4>
                                                 <small id="labelqualitySUB">Sub ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentagequalitySUB"></span>
                                             </div>
@@ -738,14 +743,6 @@
 
     </div>  <!-- End of Container Fluid -->
 
-    <!-- Hidden inputs สำหรับ backward-compat กับ ui.js / script.js -->
-    <!-- btnExport, report_date_start, report_date_end ถูกอ้างอิงใน ui.js -->
-    <div style="display:none;" aria-hidden="true">
-        <input type="date" id="report_date_start">
-        <input type="date" id="report_date_end">
-        <button id="btnExport"></button>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="script/config.js?v=<?= filemtime('script/config.js') ?>"></script>
     <script src="script/gauges.js?v=<?= filemtime('script/gauges.js') ?>"></script>
@@ -754,5 +751,14 @@
     <script src="script/ui.js?v=<?= filemtime('script/ui.js') ?>"></script>
     <script src="script/ai_report.js?v=<?= filemtime('script/ai_report.js') ?>"></script>
     <script>document.getElementById('copyright-year').textContent = new Date().getFullYear();</script>
+    <script>
+        // Mobile hamburger button เชื่อมกับ sidebarToggle
+        const mobileBtn = document.getElementById('mobileSidebarToggle');
+        if (mobileBtn) {
+            mobileBtn.addEventListener('click', () => {
+                document.getElementById('sidebarToggle').click();
+            });
+        }
+    </script>
 </body>
 </html>

@@ -254,10 +254,22 @@
 
         const content = $$('aiReportContent');
         if (content) {
+            const lines = escapeHtml(msg).split('\n').filter(l => l.trim());
+            const title = lines[0];
+            const bullets = lines.slice(1)
+                .filter(l => l.startsWith('•') || l.startsWith('-') || l.match(/^[•\-*]/))
+                .map(l => `<li>${l.replace(/^[•\-*]\s*/, '')}</li>`)
+                .join('');
+            const extra = lines.slice(1)
+                .filter(l => !l.startsWith('•') && !l.startsWith('-') && !l.match(/^[•\-*]/))
+                .map(l => `<div>${l}</div>`)
+                .join('');
             content.innerHTML = `
                 <div class="alert alert-danger">
                     <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>เกิดข้อผิดพลาด:</strong> ${escapeHtml(msg)}
+                    <strong>${title}</strong>
+                    ${extra}
+                    ${bullets ? `<ul class="mb-0 mt-2">${bullets}</ul>` : ''}
                 </div>`;
             content.classList.remove('d-none');
         }

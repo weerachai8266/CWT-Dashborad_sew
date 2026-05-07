@@ -456,6 +456,21 @@ function callOllama(string $prompt): array {
     curl_close($ch);
 
     if ($raw === false || $err) {
+        // แปลง cURL error ให้อ่านง่ายขึ้น
+        if (str_contains($err, 'Connection refused')) {
+            throw new RuntimeException(
+                "❌ ไม่สามารถเชื่อมต่อ Ollama ได้ — เซิร์ฟเวอร์ AI (" . OLLAMA_HOST . ":" . OLLAMA_PORT . ") ไม่ตอบสนอง\n" .
+                "สาเหตุที่เป็นไปได้:\n" .
+                "• เครื่อง Windows เข้าสู่โหมดพักหน้าจอ (Sleep) — กรุณาตั้ง Power Plan เป็น \"Never sleep\"\n" .
+                "• Ollama service หยุดทำงาน — รัน ollama serve ที่เครื่อง " . OLLAMA_HOST . " อีกครั้ง\n" .
+                "• ไฟร์วอลล์บล็อก port " . OLLAMA_PORT
+            );
+        }
+        if (str_contains($err, 'timed out') || str_contains($err, 'Operation timed out')) {
+            throw new RuntimeException(
+                "⏱ Ollama ไม่ตอบสนองภายในเวลาที่กำหนด (" . OLLAMA_TIMEOUT . "s) — Model อาจกำลังโหลดอยู่ กรุณาลองใหม่อีกครั้ง"
+            );
+        }
         throw new RuntimeException("cURL error: {$err}");
     }
     if ($code !== 200) {

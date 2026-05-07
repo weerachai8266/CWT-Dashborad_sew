@@ -26,7 +26,6 @@ try {
     // รับพารามิเตอร์
     $start_date = $_GET['start_date'] ?? date('Y-m-d');
     $end_date = $_GET['end_date'] ?? date('Y-m-d');
-    $type = $_GET['type'] ?? 'daily';
     $action = $_GET['action'] ?? 'kpis';
     
     // Validate dates
@@ -37,23 +36,6 @@ try {
     // สร้าง instance ของ get_db class
     $db_handler = new get_db($conn);
     
-    // ✅ ฟังก์ชันช่วยคำนวณ target หลายวัน
-    function computeLineTarget($db_handler, $hourly_target_rate, $start_date, $end_date) {
-        if ($hourly_target_rate <= 0) return 0;
-        $line_target = 0;
-        $d1 = new DateTime($start_date);
-        $d2 = new DateTime($end_date);
-        while ($d1 <= $d2) {
-            $day = $d1->format('Y-m-d');
-            $hours = $db_handler->getWorkingHours($day, $day); // ชั่วโมงของวันนั้น (หักเบรก)
-            foreach ($hours as $h) {
-                $mins = $db_handler->getActualWorkingMinutes($h);
-                $line_target += round(($hourly_target_rate * $mins) / 60);
-            }
-            $d1->modify('+1 day');
-        }
-        return $line_target;
-    }
     /**
      * คำนวณ Man-Hours ที่ถูกต้องสำหรับ Productivity โดยคำนึงถึงค่า thour และเวลาพัก
      * @param PDO $conn Database connection
@@ -61,7 +43,7 @@ try {
      * @param string $end_date End date in YYYY-MM-DD format
      * @return float Total man-hours after adjusting for actual working time
      */
-    function calculateActualManHours(PDO $conn, string $start_date, string $end_date): float {
+    function calculateActualManHours(PDO $conn, get_db $db_handler, string $start_date, string $end_date): float {
         $total_man_hours = 0;
         try {
             $sql_manpower = "SELECT DATE(created_at) as d, thour, shift,
@@ -81,16 +63,8 @@ try {
                     // นำค่า thour มาคำนวณเวลาทำงานจริง
                     $hours = (float)$r['thour'];
                     
-                    // หักเวลาพักตามกะการทำงาน
                     $shift = $r['shift'] ?? 'เช้า';  // ถ้าไม่มีข้อมูล shift ให้เป็นเช้า
-                    
-                    if ($shift == 'เช้า' || $shift == 'บ่าย') {
-                        // หักพัก 20 นาทีต่อ 4 ชั่วโมง (สัดส่วน 220/240 = 0.9167)
-                        $actual_hours = $hours * (220/240);
-                    } else {
-                        // OT ไม่ต้องหักพัก
-                        $actual_hours = $hours;
-                    }
+                    $actual_hours = $db_handler->getActualWorkingHoursForShift($shift, $hours);
                     
                     $total_man_hours += $sum * $actual_hours;
                 }
@@ -133,7 +107,7 @@ try {
                 }
 
                 // Productivity = Output / Man-Hours
-                $actual_man_hours = calculateActualManHours($conn, $start_date, $end_date);
+                $actual_man_hours = calculateActualManHours($conn, $db_handler, $start_date, $end_date);
                 if ($actual_man_hours > 0) {
                     $kpis['productivity_rate'] = round($total_actual / $actual_man_hours, 2);
                 }
@@ -160,241 +134,14 @@ try {
         }
         return $kpis;
     }
-    
-    // ดึงข้อมูล Efficiency Trend โดยใช้ data.class.php
-    function getEfficiencyTrend($db_handler, $start_date, $end_date, $type) {
-        $trend_data = [];
-        
-        try {
-            if ($type === 'monthly') {
-                $start_month = date('Y-m-01', strtotime($start_date));
-                $end_month = date('Y-m-t', strtotime($end_date));
-                $query_start = $start_month;
-                $query_end = $end_month;
-            } else {
-                $query_start = date('Y-m-01', strtotime($start_date));
-                $query_end = $end_date;
-            }
-            
-            // สร้างรายการวันที่จาก start ถึง end
-            $current_date = $query_start;
-            while (strtotime($current_date) <= strtotime($query_end)) {
-                // ✅ ใช้ getSummaryReport สำหรับแต่ละวัน
-                $daily_summary = $db_handler->getSummaryReport($current_date, $current_date, 'pieces');
-                
-                $period_actual = 0;
-                $period_target = 0;
-                
-                if ($daily_summary) {
-                    // ✅ ดึงชั่วโมงทำงานจริงของวันนี้
-                    $working_hours = $db_handler->getWorkingHours($current_date, $current_date);
-                    // $hours_count = count($working_hours);
-
-                    // ✅ คำนวณ: actual/ชั่วโมง × จำนวนชั่วโมงทำงาน
-                    foreach ($daily_summary as $line => $data) {
-                        $period_actual += (int)($data['total_qty'] ?? 0);
-                    
-                        // ✅ คำนวณเป้าหมายจากเวลาทำงานจริง (หักเบรกแล้ว)
-                        $hourly_target_rate = (int)($data['target'] ?? 0);
-                        $line_target = 0;
-                        
-                        foreach ($working_hours as $hour) {
-                            $actual_working_minutes = $db_handler->getActualWorkingMinutes($hour);
-                            $line_target += round(($hourly_target_rate * $actual_working_minutes) / 60);
-                        }
-
-                        $period_target += $line_target;
-                    }
-                }
-                
-                // เพิ่มข้อมูลเฉพาะวันที่มีการทำงาน
-                if ($period_actual > 0 || $period_target > 0) {
-                    $efficiency = 0;
-                    if ($period_target > 0) {
-                        $efficiency = ($period_actual / $period_target) * 100;
-                    }
-                    
-                    $day_of_week = date('w', strtotime($current_date));
-                    
-                    $trend_data[] = [
-                        'period' => $current_date,
-                        'period_raw' => $current_date,
-                        'efficiency' => round($efficiency, 2),
-                        'actual' => $period_actual,
-                        'target' => round($period_target),
-                        'is_weekend' => ($day_of_week == 0 || $day_of_week == 7)
-                    ];
-                }
-                
-                $current_date = date('Y-m-d', strtotime($current_date . ' +1 day'));
-            }
-            
-        } catch (Exception $e) {
-            error_log("Error getting efficiency trend: " . $e->getMessage());
-        }
-        
-        return $trend_data;
-    }
-    
-    // ดึงข้อมูล Line Performance โดยใช้ data.class.php
-    function getLinePerformance($db_handler, $start_date, $end_date) {
-        $line_performance = [];
-        try {
-            $summary_data = $db_handler->getSummaryReport($start_date, $end_date, 'pieces');
-            if ($summary_data) {
-                foreach ($summary_data as $line => $data) {
-                    // ใช้ percentage จาก calculateHourlyAveragePercentage เหมือนหน้า Production
-                    $eff = (float)($data['percentage'] ?? 0);
-
-                    $line_performance[] = [
-                        'process'    => strtoupper($line === 'third' ? '3RD' : $line),
-                        'actual_qty' => (int)($data['total_qty'] ?? 0),
-                        'target_qty' => (int)($data['daily_target'] ?? 0),
-                        'efficiency' => round($eff, 2)
-                    ];
-                }
-            }
-        } catch (Exception $e) {
-            error_log("Line perf error: ".$e->getMessage());
-        }
-        return $line_performance;
-    }
-    
-    // ตรวจสอบว่ามีฟังก์ชันใน data.class.php หรือไม่
-    function hasMethod($db_handler, $method_name) {
-        return method_exists($db_handler, $method_name);
-    }
-    
     // จัดการ request ตาม action
     switch ($action) {
         case 'kpis':
             $response['data'] = calculatePerformanceKPIs($db_handler, $conn, $start_date, $end_date);
             break;
-            
-        case 'efficiency_trend':
-            $response['data'] = getEfficiencyTrend($db_handler, $start_date, $end_date, $type);
-            break;
-            
-        case 'line_performance':
-            $response['data'] = getLinePerformance($db_handler, $start_date, $end_date);
-            break;
-            
-        case 'all':
-            $response['data'] = [
-                'kpis' => calculatePerformanceKPIs($db_handler, $conn, $start_date, $end_date),
-                'efficiency_trend' => getEfficiencyTrend($db_handler, $start_date, $end_date, $type),
-                'line_performance' => getLinePerformance($db_handler, $start_date, $end_date)
-            ];
-            break;
-            
-        case 'methods':
-            // ตรวจสอบว่ามีฟังก์ชันอะไรใน data.class.php บ้าง
-            $methods = get_class_methods($db_handler);
-            $response['data'] = [
-                'available_methods' => $methods,
-                'has_getSummaryReport' => hasMethod($db_handler, 'getSummaryReport'),
-                'has_getHourlyReport' => hasMethod($db_handler, 'getHourlyReport'),
-                'has_getDailyReport' => hasMethod($db_handler, 'getDailyReport'),
-                'has_getDetailReport' => hasMethod($db_handler, 'getDetailReport'),
-                'has_debugTableData' => hasMethod($db_handler, 'debugTableData')
-            ];
-            break;
-            
-        case 'debug':
-            // Debug การคำนวณ target แบบละเอียด
-            break;
-            
-        case 'grafana_metrics':
-            // Format สำหรับ SimpleJSON/JSON API Plugin
-            $kpis = calculatePerformanceKPIs($db_handler, $conn, $start_date, $end_date);
-            
-            // แปลงเป็น format ที่ Grafana ต้องการ
-            $metrics = [];
-            foreach ($kpis as $key => $value) {
-                $metrics[] = [
-                    'target' => $key,
-                    'datapoints' => [
-                        [$value, strtotime($end_date) * 1000] // Grafana ต้องการ timestamp ในหน่วย milliseconds
-                    ]
-                ];
-            }
-            
-            // เพิ่มข้อมูล Output
-            $summary = $db_handler->getSummaryReport($start_date, $end_date, 'pieces');
-            $total_output = 0;
-            if ($summary) {
-                foreach ($summary as $line => $data) {
-                    $total_output += (int)($data['total_qty'] ?? 0);
-                }
-            }
-            
-            $metrics[] = [
-                'target' => 'total_output',
-                'datapoints' => [
-                    [$total_output, strtotime($end_date) * 1000]
-                ]
-            ];
-            
-            $response['data'] = $metrics;
-            break;
-
-        case 'grafana_timeseries':
-            // Format สำหรับ Time Series
-            $trend = getEfficiencyTrend($db_handler, $start_date, $end_date, 'daily');
-            $series = [];
-            
-            // Efficiency Trend
-            $efficiency_series = [
-                'target' => 'Efficiency (%)',
-                'datapoints' => []
-            ];
-            
-            // Quality Performance (คำนวณจากข้อมูลที่มี)
-            $quality_series = [
-                'target' => 'Quality Rate (%)',
-                'datapoints' => []
-            ];
-            
-            foreach ($trend as $point) {
-                $timestamp = strtotime($point['period']) * 1000;
-                $eff = is_numeric($point['efficiency']) ? floatval($point['efficiency']) : 0;
-                $efficiency_series['datapoints'][] = [$eff, intval($timestamp)];
-
-                // Quality Rate
-                try {
-                    $daily_kpis = calculatePerformanceKPIs($db_handler, $conn, $point['period'], $point['period']);
-                    $quality_rate = isset($daily_kpis['quality_rate']) && is_numeric($daily_kpis['quality_rate']) ? floatval($daily_kpis['quality_rate']) : 100;
-                    $quality_series['datapoints'][] = [$quality_rate, intval($timestamp)];
-                } catch (Exception $e) {
-                    $quality_series['datapoints'][] = [100, intval($timestamp)];
-                }
-            }
-            
-            $series[] = $efficiency_series;
-            $series[] = $quality_series;
-            
-            $response['data'] = $series;
-            break;
-
-        case 'grafana_line_performance':
-            // Line Performance สำหรับ Bar Chart
-            $line_perf = getLinePerformance($db_handler, $start_date, $end_date);
-            $series = [];
-            
-            foreach ($line_perf as $line) {
-                $series[] = [
-                    'target' => $line['process'],
-                    'datapoints' => [
-                        [$line['efficiency'], strtotime($end_date) * 1000]
-                    ]
-                ];
-            }
-            
-            $response['data'] = $series;
-            break;
 
         default:
-            throw new Exception('Invalid action parameter. Available actions: kpis, efficiency_trend, line_performance, all, methods, debug');
+            throw new Exception('Invalid action parameter. Available actions: kpis');
     }
     
     $response['success'] = true;

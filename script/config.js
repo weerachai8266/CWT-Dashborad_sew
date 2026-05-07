@@ -56,13 +56,6 @@ const PERCENTAGE_COLORS = {
     excellent: '#007bff'    // 101%+
 };
 
-function getStatusEmoji(percentage) {
-    if (percentage >= PERF_THRESHOLD_EXCELLENT) return '🔵';
-    if (percentage >= PERF_THRESHOLD_GOOD)      return '🟢';
-    if (percentage >= PERF_THRESHOLD_WARNING)   return '🟡';
-    return '🔴';
-}
-
 function getColorByPercentage(percentage) {
     if (percentage >= PERF_THRESHOLD_EXCELLENT) return PERCENTAGE_COLORS.excellent;
     if (percentage >= PERF_THRESHOLD_GOOD)      return PERCENTAGE_COLORS.good;

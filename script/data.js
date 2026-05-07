@@ -495,64 +495,6 @@ function updateCrossModelTable(data) {
     document.getElementById('modelDetailCount').textContent = `Total ${data.details.length} Details`;
 }
 
-// Load performance data
-async function loadPerformanceData() {
-    try {
-        const start_date = document.getElementById('performance_date_start').value;
-        const end_date = document.getElementById('performance_date_end').value;
-        const type = document.querySelector('input[name="performanceType"]:checked').value;
-
-        const response = await fetch(`api/get_performance.php?action=all&start_date=${start_date}&end_date=${end_date}&type=${type}`);
-        const data = await response.json();
-
-        if (data.success) {
-            updatePerformanceKPIs(data.data.kpis);
-            createEfficiencyTrendChart(data.data.efficiency_trend);
-            createLinePerformanceChart(data.data.line_performance);
-            createTargetVsActualChart(data.data.line_performance);
-            createQualityPerformanceChart(data.data.kpis);
-        }
-
-    } catch (error) {
-        console.error('Error loading performance data:', error);
-    }
-}
-
-// Update Performance KPIs
-function updatePerformanceKPIs(kpis) {
-    document.getElementById('overallEfficiency').textContent = `${kpis.overall_efficiency}%`;
-    document.getElementById('qualityRate').textContent = `${kpis.quality_rate}%`;
-    document.getElementById('productivityRate').textContent = `${kpis.productivity_rate}`;
-    document.getElementById('defectRate').textContent = `${kpis.defect_rate}%`;
-
-    updateKPIColors('overallEfficiency', kpis.overall_efficiency);
-    updateKPIColors('qualityRate', kpis.quality_rate);
-    updateKPIColors('productivityRate', kpis.productivity_rate);
-    updateKPIColors('defectRate', kpis.defect_rate, true);
-
-    const rate = parseFloat(kpis.productivity_rate) || 0;
-    window._productivityLastRate = rate;
-    if (window._gaugeLastData) {
-        drawKPIGauge(window._gaugeLastData.overall, window._gaugeLastData.lines);
-    }
-}
-
-// Update KPI element color
-function updateKPIColors(elementId, value, reverse = false) {
-    const element = document.getElementById(elementId);
-    element.classList.remove('text-success', 'text-warning', 'text-danger');
-
-    if (reverse) {
-        if (value < 3) element.classList.add('text-success');
-        else if (value < 5) element.classList.add('text-warning');
-        else element.classList.add('text-danger');
-    } else {
-        if (value >= 90) element.classList.add('text-success');
-        else if (value >= 80) element.classList.add('text-warning');
-        else element.classList.add('text-danger');
-    }
-}
-
 // Load and display production data
 // KPI Trend Charts
 let kpiTrendChart = null;
@@ -780,6 +722,13 @@ async function loadProductData() {
         const startDate = document.getElementById('production_date_start').value;
         const endDate = document.getElementById('production_date_end').value;
         const chartType = (startDate === endDate) ? 'hourly' : 'daily';
+
+        // อัปเดต date label บน card header
+        const dateLabel = startDate === endDate ? startDate : `${startDate} → ${endDate}`;
+        const summaryDateEl = document.getElementById('summaryDateLabel');
+        const gaugeDateEl   = document.getElementById('gaugeDateLabel');
+        if (summaryDateEl) summaryDateEl.textContent = dateLabel;
+        if (gaugeDateEl)   gaugeDateEl.textContent   = dateLabel;
 
         const chartData = await fetchReportData(chartType);
         updateCharts(chartData);

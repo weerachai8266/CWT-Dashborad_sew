@@ -33,10 +33,6 @@ try {
             $data = $report->getSummaryReport($start_date, $end_date, $display_type);
             break;
             
-        case 'debug':
-            $data = $report->debugTableData($start_date, $end_date);
-            break;
-            
         case 'model_summary':
             $ms_start = $_GET['start_date'] ?? date('Y-m-d');
             $ms_end   = $_GET['end_date']   ?? $ms_start;

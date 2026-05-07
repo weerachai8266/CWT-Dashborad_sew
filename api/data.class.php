@@ -1,6 +1,7 @@
 <?php
 class get_db {
     private $conn;
+    private $breakTimesCache = null;
     private $tables = [
         'fc' => 'sewing_fc',
         'fb' => 'sewing_fb',
@@ -16,6 +17,10 @@ class get_db {
 
     // ดึงข้อมูลเวลาพักเบรคที่ active
     private function getBreakTimes() {
+        if ($this->breakTimesCache !== null) {
+            return $this->breakTimesCache;
+        }
+
         try {
             $query = "SELECT break_name, start_time, end_time, duration_minutes
                       FROM break_times
@@ -23,11 +28,85 @@ class get_db {
                       ORDER BY start_time";
             $stmt = $this->conn->prepare($query);
             $stmt->execute();
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $this->breakTimesCache = $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
             error_log("Error fetching break times: " . $e->getMessage());
-            return [];
+            $this->breakTimesCache = [];
         }
+
+        return $this->breakTimesCache;
+    }
+
+    private function timeToMinutes($time) {
+        if (empty($time)) {
+            return null;
+        }
+
+        $parts = explode(':', $time);
+        if (count($parts) < 2) {
+            return null;
+        }
+
+        return ((int)$parts[0] * 60) + (int)$parts[1];
+    }
+
+    private function getShiftStartMinutes($shift) {
+        $shift = trim((string)$shift);
+        if (strtoupper($shift) === 'OT') {
+            $shift = 'OT';
+        }
+
+        switch ($shift) {
+            case 'บ่าย':
+                return (12 * 60) + 30;
+            case 'OT':
+                return 17 * 60;
+            case 'เช้า':
+            default:
+                return 8 * 60;
+        }
+    }
+
+    private function calculateBreakOverlapMinutes($workStart, $workEnd) {
+        $total = 0;
+
+        foreach ($this->getBreakTimes() as $break) {
+            $breakStart = $this->timeToMinutes($break['start_time'] ?? null);
+            $breakEnd = $this->timeToMinutes($break['end_time'] ?? null);
+
+            if ($breakStart === null || $breakEnd === null) {
+                continue;
+            }
+
+            if ($breakEnd <= $breakStart) {
+                $breakEnd += 24 * 60;
+            }
+
+            foreach ([0, 24 * 60] as $dayOffset) {
+                $start = $breakStart + $dayOffset;
+                $end = $breakEnd + $dayOffset;
+                $overlap = min($workEnd, $end) - max($workStart, $start);
+
+                if ($overlap > 0) {
+                    $total += $overlap;
+                }
+            }
+        }
+
+        return $total;
+    }
+
+    public function getActualWorkingHoursForShift($shift, $hours) {
+        $hours = max(0, (float)$hours);
+        if ($hours <= 0) {
+            return 0.0;
+        }
+
+        $workStart = $this->getShiftStartMinutes($shift ?: 'เช้า');
+        $workEnd = $workStart + (int)round($hours * 60);
+        $breakMinutes = $this->calculateBreakOverlapMinutes($workStart, $workEnd);
+
+        return max(0, (($hours * 60) - $breakMinutes) / 60);
     }
 
     // คำนวณเวลาทำงานจริงในแต่ละชั่วโมง (หักเวลาพักเบรค)
@@ -519,63 +598,6 @@ class get_db {
         }
 
         return $result;
-    }
-
-
-    // Debug function - ตรวจสอบข้อมูลในตาราง
-    public function debugTableData($start_date, $end_date) {
-        $debug_info = [];
-        
-        foreach ($this->tables as $line => $table_name) {
-            try {
-                // ตรวจสอบว่าตารางมีอยู่จริง
-                $check_table = "SHOW TABLES LIKE :table_name";
-                $stmt = $this->conn->prepare($check_table);
-                $stmt->bindParam(':table_name', $table_name);
-                $stmt->execute();
-                
-                if ($stmt->rowCount() == 0) {
-                    $debug_info[$line] = ['error' => 'Table does not exist'];
-                    continue;
-                }
-
-                // นับจำนวนข้อมูลทั้งหมด
-                $count_query = "SELECT COUNT(*) as total FROM " . $table_name;
-                $stmt = $this->conn->prepare($count_query);
-                $stmt->execute();
-                $total_count = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
-
-                // นับจำนวนข้อมูลในช่วงวันที่
-                $date_count_query = "SELECT COUNT(*) as date_count FROM " . $table_name . " 
-                                    WHERE DATE(created_at) BETWEEN :start_date AND :end_date";
-                $stmt = $this->conn->prepare($date_count_query);
-                $stmt->bindParam(':start_date', $start_date);
-                $stmt->bindParam(':end_date', $end_date);
-                $stmt->execute();
-                $date_count = $stmt->fetch(PDO::FETCH_ASSOC)['date_count'];
-
-                // ดูข้อมูลตัวอย่าง
-                $sample_query = "SELECT * FROM " . $table_name . " 
-                                WHERE DATE(created_at) BETWEEN :start_date AND :end_date LIMIT 3";
-                $stmt = $this->conn->prepare($sample_query);
-                $stmt->bindParam(':start_date', $start_date);
-                $stmt->bindParam(':end_date', $end_date);
-                $stmt->execute();
-                $samples = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-                $debug_info[$line] = [
-                    'table_exists' => true,
-                    'total_records' => $total_count,
-                    'date_range_records' => $date_count,
-                    'sample_data' => $samples
-                ];
-
-            } catch (PDOException $e) {
-                $debug_info[$line] = ['error' => $e->getMessage()];
-            }
-        }
-        
-        return $debug_info;
     }
 }
 ?>

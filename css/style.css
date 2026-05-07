@@ -260,9 +260,9 @@ body {
     position: absolute;
     top: 5px;
     right: 5px;
-    padding: 2px 7px;
+    padding: 3px 9px;
     border-radius: 10px;
-    font-size: 10px;
+    font-size: 13px;
     font-weight: bold;
     color: white;
 }
