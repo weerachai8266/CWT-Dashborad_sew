@@ -43,7 +43,7 @@ try {
      * @param string $end_date End date in YYYY-MM-DD format
      * @return float Total man-hours after adjusting for actual working time
      */
-    function calculateActualManHours(PDO $conn, get_db $db_handler, string $start_date, string $end_date): float {
+    function calculateActualManHours(PDO $conn, string $start_date, string $end_date): float {
         $total_man_hours = 0;
         try {
             $sql_manpower = "SELECT DATE(created_at) as d, thour, shift,
@@ -63,8 +63,16 @@ try {
                     // นำค่า thour มาคำนวณเวลาทำงานจริง
                     $hours = (float)$r['thour'];
                     
+                    // หักเวลาพักตามกะการทำงาน
                     $shift = $r['shift'] ?? 'เช้า';  // ถ้าไม่มีข้อมูล shift ให้เป็นเช้า
-                    $actual_hours = $db_handler->getActualWorkingHoursForShift($shift, $hours);
+                    
+                    if ($shift == 'เช้า' || $shift == 'บ่าย') {
+                        // หักพัก 20 นาทีต่อ 4 ชั่วโมง (สัดส่วน 220/240 = 0.9167)
+                        $actual_hours = $hours * (220/240);
+                    } else {
+                        // OT ไม่ต้องหักพัก
+                        $actual_hours = $hours;
+                    }
                     
                     $total_man_hours += $sum * $actual_hours;
                 }
@@ -107,7 +115,7 @@ try {
                 }
 
                 // Productivity = Output / Man-Hours
-                $actual_man_hours = calculateActualManHours($conn, $db_handler, $start_date, $end_date);
+                $actual_man_hours = calculateActualManHours($conn, $start_date, $end_date);
                 if ($actual_man_hours > 0) {
                     $kpis['productivity_rate'] = round($total_actual / $actual_man_hours, 2);
                 }

@@ -1,7 +1,6 @@
 <?php
 class get_db {
     private $conn;
-    private $breakTimesCache = null;
     private $tables = [
         'fc' => 'sewing_fc',
         'fb' => 'sewing_fb',
@@ -17,10 +16,6 @@ class get_db {
 
     // ดึงข้อมูลเวลาพักเบรคที่ active
     private function getBreakTimes() {
-        if ($this->breakTimesCache !== null) {
-            return $this->breakTimesCache;
-        }
-
         try {
             $query = "SELECT break_name, start_time, end_time, duration_minutes
                       FROM break_times
@@ -28,85 +23,11 @@ class get_db {
                       ORDER BY start_time";
             $stmt = $this->conn->prepare($query);
             $stmt->execute();
-            $this->breakTimesCache = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
             error_log("Error fetching break times: " . $e->getMessage());
-            $this->breakTimesCache = [];
+            return [];
         }
-
-        return $this->breakTimesCache;
-    }
-
-    private function timeToMinutes($time) {
-        if (empty($time)) {
-            return null;
-        }
-
-        $parts = explode(':', $time);
-        if (count($parts) < 2) {
-            return null;
-        }
-
-        return ((int)$parts[0] * 60) + (int)$parts[1];
-    }
-
-    private function getShiftStartMinutes($shift) {
-        $shift = trim((string)$shift);
-        if (strtoupper($shift) === 'OT') {
-            $shift = 'OT';
-        }
-
-        switch ($shift) {
-            case 'บ่าย':
-                return (12 * 60) + 30;
-            case 'OT':
-                return 17 * 60;
-            case 'เช้า':
-            default:
-                return 8 * 60;
-        }
-    }
-
-    private function calculateBreakOverlapMinutes($workStart, $workEnd) {
-        $total = 0;
-
-        foreach ($this->getBreakTimes() as $break) {
-            $breakStart = $this->timeToMinutes($break['start_time'] ?? null);
-            $breakEnd = $this->timeToMinutes($break['end_time'] ?? null);
-
-            if ($breakStart === null || $breakEnd === null) {
-                continue;
-            }
-
-            if ($breakEnd <= $breakStart) {
-                $breakEnd += 24 * 60;
-            }
-
-            foreach ([0, 24 * 60] as $dayOffset) {
-                $start = $breakStart + $dayOffset;
-                $end = $breakEnd + $dayOffset;
-                $overlap = min($workEnd, $end) - max($workStart, $start);
-
-                if ($overlap > 0) {
-                    $total += $overlap;
-                }
-            }
-        }
-
-        return $total;
-    }
-
-    public function getActualWorkingHoursForShift($shift, $hours) {
-        $hours = max(0, (float)$hours);
-        if ($hours <= 0) {
-            return 0.0;
-        }
-
-        $workStart = $this->getShiftStartMinutes($shift ?: 'เช้า');
-        $workEnd = $workStart + (int)round($hours * 60);
-        $breakMinutes = $this->calculateBreakOverlapMinutes($workStart, $workEnd);
-
-        return max(0, (($hours * 60) - $breakMinutes) / 60);
     }
 
     // คำนวณเวลาทำงานจริงในแต่ละชั่วโมง (หักเวลาพักเบรค)
