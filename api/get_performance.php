@@ -3,6 +3,7 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 ini_set('log_errors', 1);
 error_reporting(E_ALL);
+date_default_timezone_set('Asia/Bangkok');
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
@@ -36,21 +37,97 @@ try {
     // สร้าง instance ของ get_db class
     $db_handler = new get_db($conn);
     
+    function isTodayFilter(string $start_date, string $end_date): bool {
+        $today = date('Y-m-d');
+        return $start_date === $today && $end_date === $today;
+    }
+
+    function loadShiftTimeConfig(): array {
+        $defaults = [
+            'เช้า' => ['start' => '08:00', 'end' => '12:00'],
+            'บ่าย' => ['start' => '13:00', 'end' => '17:00'],
+            'OT' => ['start' => '17:30', 'end' => '21:00'],
+        ];
+
+        $file = __DIR__ . '/../config/shift_times.json';
+        if (!file_exists($file)) {
+            return $defaults;
+        }
+
+        $data = json_decode(file_get_contents($file), true);
+        if (!is_array($data)) {
+            return $defaults;
+        }
+
+        foreach ($defaults as $shift => $times) {
+            $data[$shift]['start'] = $data[$shift]['start'] ?? $times['start'];
+            $data[$shift]['end'] = $data[$shift]['end'] ?? $times['end'];
+        }
+
+        return $data;
+    }
+
+    function getActiveBreakTimes(PDO $conn): array {
+        $stmt = $conn->prepare("SELECT start_time, end_time FROM break_times WHERE is_active = 1");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    function buildTimeRange(string $date, string $start_time, string $end_time): array {
+        $start = new DateTimeImmutable($date . ' ' . substr($start_time, 0, 5));
+        $end = new DateTimeImmutable($date . ' ' . substr($end_time, 0, 5));
+        if ($end <= $start) {
+            $end = $end->modify('+1 day');
+        }
+        return [$start, $end];
+    }
+
+    function overlapSeconds(DateTimeImmutable $start_a, DateTimeImmutable $end_a, DateTimeImmutable $start_b, DateTimeImmutable $end_b): int {
+        $start = max($start_a->getTimestamp(), $start_b->getTimestamp());
+        $end = min($end_a->getTimestamp(), $end_b->getTimestamp());
+        return max(0, $end - $start);
+    }
+
+    function calculateElapsedNetHoursForShift(string $date, string $shift, DateTimeImmutable $now, array $shift_times, array $break_times): float {
+        if (!isset($shift_times[$shift])) {
+            return 0;
+        }
+
+        [$shift_start, $shift_end] = buildTimeRange($date, $shift_times[$shift]['start'], $shift_times[$shift]['end']);
+        if ($now <= $shift_start) {
+            return 0;
+        }
+
+        $elapsed_end = $now < $shift_end ? $now : $shift_end;
+        $gross_seconds = max(0, $elapsed_end->getTimestamp() - $shift_start->getTimestamp());
+        $break_seconds = 0;
+
+        foreach ($break_times as $break) {
+            [$break_start, $break_end] = buildTimeRange($date, $break['start_time'], $break['end_time']);
+            $break_seconds += overlapSeconds($shift_start, $elapsed_end, $break_start, $break_end);
+        }
+
+        return max(0, ($gross_seconds - $break_seconds) / 3600);
+    }
+
     /**
-     * คำนวณ Man-Hours ที่ถูกต้องสำหรับ Productivity โดยคำนึงถึงค่า thour และเวลาพัก
-     * @param PDO $conn Database connection
-     * @param string $start_date Start date in YYYY-MM-DD format
-     * @param string $end_date End date in YYYY-MM-DD format
-     * @return float Total man-hours after adjusting for actual working time
+     * คำนวณ Man-Hours สำหรับ Productivity
+     * - ฟิลเตอร์วันนี้: ใช้เวลาเริ่ม/จบกะจาก config และหัก break_times ตามเวลาที่ผ่านไปจริง
+     * - ฟิลเตอร์หลายวัน/วันอื่น: ใช้ thour จากฐานข้อมูลตามสูตรเดิม
      */
     function calculateActualManHours(PDO $conn, string $start_date, string $end_date): float {
         $total_man_hours = 0;
         try {
-            $sql_manpower = "SELECT DATE(created_at) as d, thour, shift,
+            $use_today_elapsed = isTodayFilter($start_date, $end_date);
+            $shift_times = $use_today_elapsed ? loadShiftTimeConfig() : [];
+            $break_times = $use_today_elapsed ? getActiveBreakTimes($conn) : [];
+            $now = new DateTimeImmutable('now');
+
+            $sql_manpower = "SELECT DATE(created_at) as d, shift, thour,
                             fc_act, fb_act, rc_act, rb_act, 3rd_act as third_act, sub_act
                     FROM sewing_man_act
                     WHERE DATE(created_at) BETWEEN ? AND ?
-                    ORDER BY d, thour";
+                    ORDER BY d, shift";
             $stmt = $conn->prepare($sql_manpower);
             $stmt->execute([$start_date, $end_date]);
             $mp_rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -60,21 +137,14 @@ try {
                     + (int)$r['third_act'] + (int)$r['sub_act'];
                     
                 if ($sum > 0) {
-                    // นำค่า thour มาคำนวณเวลาทำงานจริง
-                    $hours = (float)$r['thour'];
-                    
-                    // หักเวลาพักตามกะการทำงาน
-                    $shift = $r['shift'] ?? 'เช้า';  // ถ้าไม่มีข้อมูล shift ให้เป็นเช้า
-                    
-                    if ($shift == 'เช้า' || $shift == 'บ่าย') {
-                        // หักพัก 20 นาทีต่อ 4 ชั่วโมง (สัดส่วน 220/240 = 0.9167)
-                        $actual_hours = $hours * (220/240);
+                    if ($use_today_elapsed) {
+                        $hours = calculateElapsedNetHoursForShift($r['d'], trim((string)($r['shift'] ?? '')), $now, $shift_times, $break_times);
                     } else {
-                        // OT ไม่ต้องหักพัก
-                        $actual_hours = $hours;
+                        // thour เป็นชั่วโมงสุทธิหลังหักเบรคแล้ว จึงไม่ต้องหักเบรคซ้ำ
+                        $hours = (float)$r['thour'];
                     }
-                    
-                    $total_man_hours += $sum * $actual_hours;
+
+                    $total_man_hours += $sum * $hours;
                 }
             }
         } catch (PDOException $e) {

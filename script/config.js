@@ -34,19 +34,29 @@ const LINE_NAMES = {
     sub: 'Sub'
 };
 
+const KPI_CONFIG = window.KPI_CONFIG || {};
+
 // Defect Rate threshold — ปรับได้ทุกปี (หน่วย: %)
-const DR_THRESHOLD      = 1.7;   // DR ≤ ค่านี้ = Good
-const DR_WARN_THRESHOLD = 2.0;   // DR ≤ ค่านี้ = Warning (> ค่านี้ = Critical)
+const DR_THRESHOLD      = Number(KPI_CONFIG.dr_threshold ?? 1.7);   // DR ≤ ค่านี้ = Good
+const DR_WARN_THRESHOLD = Number(KPI_CONFIG.dr_warn_threshold ?? 2.0);   // DR ≤ ค่านี้ = Warning (> ค่านี้ = Critical)
 
 // Quality Rate threshold — สัมพันธ์กับ DR (zone ratio ≈ DR red:yellow = 62.5%:37.5%)
-const QR_GOOD_THRESHOLD = 98;   // QR ≥ ค่านี้ = Good   (green zone ~18° wide)
-const QR_WARN_THRESHOLD = 96;   // QR ≥ ค่านี้ = Warning (yellow zone ~12° wide, 95 อยู่ที่ 30° จากขวา)
+const QR_GOOD_THRESHOLD = Number(KPI_CONFIG.qr_good_threshold ?? 98);   // QR ≥ ค่านี้ = Good
+const QR_WARN_THRESHOLD = Number(KPI_CONFIG.qr_warn_threshold ?? 96);   // QR ≥ ค่านี้ = Warning
 
 // Performance percentage thresholds
-const PERF_THRESHOLD_EXCELLENT = 101;  // % ขึ้นไป = เกินเป้า (น้ำเงิน)
-const PERF_THRESHOLD_GOOD      = 95;   // % ขึ้นไป = ดี (เขียว)
-const PERF_THRESHOLD_WARNING   = 85;   // % ขึ้นไป = เฝ้าระวัง (เหลือง)
+const PERF_THRESHOLD_EXCELLENT = Number(KPI_CONFIG.perf_threshold_excellent ?? 101);  // % ขึ้นไป = เกินเป้า (น้ำเงิน)
+const PERF_THRESHOLD_GOOD      = Number(KPI_CONFIG.perf_threshold_good ?? 95);   // % ขึ้นไป = ดี (เขียว)
+const PERF_THRESHOLD_WARNING   = Number(KPI_CONFIG.perf_threshold_warning ?? 85);   // % ขึ้นไป = เฝ้าระวัง (เหลือง)
                                         // ต่ำกว่านี้   = วิกฤต (แดง)
+
+// Productivity thresholds (หน่วย: ชิ้นต่อ Man-Hour)
+const PROD_GAUGE_MAX           = Number(KPI_CONFIG.prod_gauge_max ?? 5.0);  // ค่าสูงสุดบนเกจ
+const PROD_TARGET              = Number(KPI_CONFIG.prod_target ?? 4.0);  // เป้าหมาย Productivity = 100%
+const PROD_THRESHOLD_EXCELLENT = PROD_TARGET * (PERF_THRESHOLD_EXCELLENT / 100);
+const PROD_THRESHOLD_GOOD      = PROD_TARGET * (PERF_THRESHOLD_GOOD / 100);
+const PROD_THRESHOLD_WARNING   = PROD_TARGET * (PERF_THRESHOLD_WARNING / 100);
+                                        // ต่ำกว่า warning = Critical
 
 // Color coding for percentage
 const PERCENTAGE_COLORS = {
@@ -69,3 +79,13 @@ function getPercentageClass(percentage) {
     if (percentage >= PERF_THRESHOLD_WARNING)   return 'percentage-warning';
     return 'percentage-critical';
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.perf-warning-label').forEach(el => el.textContent = PERF_THRESHOLD_WARNING);
+    document.querySelectorAll('.perf-good-label').forEach(el => el.textContent = PERF_THRESHOLD_GOOD);
+    document.querySelectorAll('.perf-excellent-label').forEach(el => el.textContent = PERF_THRESHOLD_EXCELLENT);
+    document.querySelectorAll('.perf-good-prev-label').forEach(el => el.textContent = PERF_THRESHOLD_GOOD - 1);
+    document.querySelectorAll('.perf-excellent-prev-label').forEach(el => el.textContent = PERF_THRESHOLD_EXCELLENT - 1);
+    document.querySelectorAll('.dr-threshold-label').forEach(el => el.textContent = DR_THRESHOLD);
+    document.querySelectorAll('.dr-warn-threshold-label').forEach(el => el.textContent = DR_WARN_THRESHOLD);
+});

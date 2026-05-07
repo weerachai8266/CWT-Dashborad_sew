@@ -1,3 +1,4 @@
+<?php require_once __DIR__ . '/config/app.php'; ?>
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -90,6 +91,9 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" id="aireport-tab" data-bs-toggle="tab" href="#aireport" role="tab" title="AI Report">🤖 <span class="nav-text">AI Report <span class="badge bg-warning text-dark ms-1" style="font-size:0.6rem;">beta</span></span></a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="config.php" title="Config">⚙️ <span class="nav-text">Config</span></a>
                 </li>
             </ul>
             <!-- Sidebar bottom logo -->
@@ -219,10 +223,10 @@
                                 <div class="card-header bg-info text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
                                     <h6 class="mb-0">🎯 Performance KPI Gauge — ภาพรวมประสิทธิภาพการผลิต</h6>
                                     <div class="d-flex gap-3 flex-wrap align-items-center" style="font-size:0.75rem;">
-                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#dc3545;margin-right:4px;"></span>Critical &lt;85%</span>
-                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#ffc107;margin-right:4px;"></span>Warning 85–94%</span>
-                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#28a745;margin-right:4px;"></span>Good 95–100%</span>
-                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#007bff;margin-right:4px;"></span>Excellent &gt;100%</span>
+                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#dc3545;margin-right:4px;"></span>Critical &lt;<span class="perf-warning-label">85</span>%</span>
+                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#ffc107;margin-right:4px;"></span>Warning <span class="perf-warning-label">85</span>–<span class="perf-good-prev-label">94</span>%</span>
+                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#28a745;margin-right:4px;"></span>Good <span class="perf-good-label">95</span>–<span class="perf-excellent-prev-label">100</span>%</span>
+                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#007bff;margin-right:4px;"></span>Excellent ≥<span class="perf-excellent-label">101</span>%</span>
                                     </div>
                                     <!-- <div class="d-flex gap-2 align-items-center flex-wrap">
                                         <span id="kpiGaugeLabel" class="badge bg-secondary fs-6 px-3 py-1">--</span>
@@ -470,9 +474,9 @@
                                 <div class="card-header bg-info text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
                                     <h6 class="mb-0">🎯 Quality KPI Gauge — ภาพรวมคุณภาพการผลิต</h6>
                                     <div class="d-flex gap-3 flex-wrap align-items-center" style="font-size:0.75rem;">
-                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#28a745;margin-right:4px;"></span>&lt; 1.7% (Good)</span>
-                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#ffc107;margin-right:4px;"></span>1.7–2.0% (Warning)</span>
-                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#dc3545;margin-right:4px;"></span>&gt; 2.0% (Critical)</span>
+                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#28a745;margin-right:4px;"></span>≤ <span class="dr-threshold-label">1.7</span>% (Good)</span>
+                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#ffc107;margin-right:4px;"></span>≤ <span class="dr-warn-threshold-label">2.0</span>% (Warning)</span>
+                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#dc3545;margin-right:4px;"></span>&gt; <span class="dr-warn-threshold-label">2.0</span>% (Critical)</span>
                                         <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#fd7e14;margin-right:4px;"></span>Defect Rate</span>
                                     </div>
                                     <div class="d-flex gap-2 align-items-center flex-wrap">
@@ -495,8 +499,8 @@
                                     <h6 class="mb-0">📊 Defect Rate รายเดือน — ปี <span id="monthlyDrYearLabel"></span></h6>
                                     <div class="d-flex gap-3 flex-wrap align-items-center" style="font-size:0.75rem;">
                                         <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#28a745;margin-right:4px;"></span>≤ <span class="dr-threshold-label">1.7</span>% (Good)</span>
-                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#ffc107;margin-right:4px;"></span>≤ 2.0% (Warning)</span>
-                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#dc3545;margin-right:4px;"></span>&gt; 2.0% (Critical)</span>
+                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#ffc107;margin-right:4px;"></span>≤ <span class="dr-warn-threshold-label">2.0</span>% (Warning)</span>
+                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#dc3545;margin-right:4px;"></span>&gt; <span class="dr-warn-threshold-label">2.0</span>% (Critical)</span>
                                         <span><span style="display:inline-block;width:9px;height:2px;background:#ffc107;margin-right:4px;vertical-align:middle;"></span>Threshold</span>
                                     </div>
                                 </div>
@@ -721,29 +725,19 @@
 
             </div>  <!-- End of Tab Content -->
 
-            <!-- Footer -->
-            <footer class="dashboard-footer">
-                <div class="footer-inner">
-                    <div class="footer-left">
-                        <!-- <img src="img/logo.png" alt="CWT Logo" style="height:28px;opacity:0.7;"> -->
-                        <span class="footer-brand">Chaiwattana Tannery Group</span>
-                        <span>Leather Seats and Auto Parts</span>
-                    </div>
-                    <div class="footer-center">
-                        <span>Production Dashboard &copy; 2025&ndash;<span id="copyright-year"></span></span>
-                    </div>
-                    <div class="footer-right">
-                        <span class="footer-version">v2.2 [beta]</span>
-                        <span class="footer-divider">|</span>
-                        <span>Powered by weerachai</span>
-                    </div>
-                </div>
-            </footer>
+            <!-- Dashboard Footer -->
+            <?php renderDashboardFooter('Production Dashboard'); ?>
         </div> <!-- End of Main Content -->
 
     </div>  <!-- End of Container Fluid -->
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        window.KPI_CONFIG = <?= json_encode(
+            json_decode(@file_get_contents(__DIR__ . '/config/kpi_thresholds.json'), true) ?: [],
+            JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR
+        ) ?>;
+    </script>
     <script src="script/config.js?v=<?= filemtime('script/config.js') ?>"></script>
     <script src="script/gauges.js?v=<?= filemtime('script/gauges.js') ?>"></script>
     <script src="script/charts.js?v=<?= filemtime('script/charts.js') ?>"></script>

@@ -105,45 +105,62 @@ function drawKPIGauge(overallPct, lineData) {
     }
 
     // ── KPI gauge parameters ───────────────────────────────────
+    // ค่า threshold ต่างๆ ถูกกำหนดใน config.js และนำมาใช้ที่นี่เพื่อความสอดคล้องกัน
     const kpiMAX = 120;
     const kpiSegs = [
-        { from: 0,   to: 84,  color: PERCENTAGE_COLORS.critical  },
-        { from: 84,  to: 95,  color: PERCENTAGE_COLORS.warning   },
-        { from: 95,  to: 100, color: PERCENTAGE_COLORS.good      },
-        { from: 100, to: 120, color: PERCENTAGE_COLORS.excellent },
+        { from: 0,                       to: PERF_THRESHOLD_WARNING,   color: PERCENTAGE_COLORS.critical  },
+        { from: PERF_THRESHOLD_WARNING,  to: PERF_THRESHOLD_GOOD,      color: PERCENTAGE_COLORS.warning   },
+        { from: PERF_THRESHOLD_GOOD,     to: PERF_THRESHOLD_EXCELLENT, color: PERCENTAGE_COLORS.good      },
+        { from: PERF_THRESHOLD_EXCELLENT, to: kpiMAX,                  color: PERCENTAGE_COLORS.excellent },
     ];
-    const kpiTicks = [0, 84, 95, 100, 120];
+    const kpiTicks = [0, PERF_THRESHOLD_WARNING, PERF_THRESHOLD_GOOD, PERF_THRESHOLD_EXCELLENT, kpiMAX];
 
     const kpiClamped = Math.min(Math.max(overallPct, 0), kpiMAX);
-    const kpiColor   = kpiClamped >= 100 ? PERCENTAGE_COLORS.excellent
-                     : kpiClamped >= 95  ? PERCENTAGE_COLORS.good
-                     : kpiClamped >= 85  ? PERCENTAGE_COLORS.warning
-                     :                     PERCENTAGE_COLORS.critical;
-    const kpiStatus  = kpiClamped >= 100 ? 'Excellent' : kpiClamped >= 95 ? 'Good' : kpiClamped >= 85 ? 'Warning' : 'Critical';
+    const kpiColor   = getColorByPercentage(kpiClamped);
+    const kpiStatus  = kpiClamped >= PERF_THRESHOLD_EXCELLENT ? 'Excellent'
+                     : kpiClamped >= PERF_THRESHOLD_GOOD      ? 'Good'
+                     : kpiClamped >= PERF_THRESHOLD_WARNING   ? 'Warning'
+                     :                                          'Critical';
+    const kpiBadgeClass = kpiClamped >= PERF_THRESHOLD_EXCELLENT ? 'bg-primary'
+                        : kpiClamped >= PERF_THRESHOLD_GOOD      ? 'bg-success'
+                        : kpiClamped >= PERF_THRESHOLD_WARNING   ? 'bg-warning text-dark'
+                        :                                          'bg-danger';
 
     // ── Productivity gauge parameters ─────────────────────────
-    const prodMAX  = 5;
+    // ค่า threshold ต่างๆ ถูกกำหนดใน config.js และนำมาใช้ที่นี่เพื่อความสอดคล้องกัน
+    const prodMAX  = PROD_GAUGE_MAX;
     const prodSegs = [
-        { from: 0,   to: 3.6, color: PERCENTAGE_COLORS.critical  },
-        { from: 3.6, to: 4.0, color: PERCENTAGE_COLORS.warning   },
-        { from: 4.0, to: 4.3, color: PERCENTAGE_COLORS.good      },
-        { from: 4.3, to: 5,   color: PERCENTAGE_COLORS.excellent },
+        { from: 0,                      to: PROD_THRESHOLD_WARNING,   color: PERCENTAGE_COLORS.critical  },
+        { from: PROD_THRESHOLD_WARNING, to: PROD_THRESHOLD_GOOD,      color: PERCENTAGE_COLORS.warning   },
+        { from: PROD_THRESHOLD_GOOD,    to: PROD_THRESHOLD_EXCELLENT, color: PERCENTAGE_COLORS.good      },
+        { from: PROD_THRESHOLD_EXCELLENT, to: prodMAX,                color: PERCENTAGE_COLORS.excellent },
     ];
-    const prodTicks = [0, 3.6, 4.0, 4.3, 5];
+    const prodTicks = [0, PROD_THRESHOLD_WARNING, PROD_THRESHOLD_GOOD, PROD_THRESHOLD_EXCELLENT, prodMAX];
     const prodVal   = Math.min(prodRate || 0, prodMAX);
     const prodClamped = Math.min(Math.max(prodVal, 0), prodMAX);
-    const prodColor   = prodClamped >= 4.3 ? PERCENTAGE_COLORS.excellent
-                      : prodClamped >= 4.0 ? PERCENTAGE_COLORS.good
-                      : prodClamped >= 3.6 ? PERCENTAGE_COLORS.warning
-                      :                      PERCENTAGE_COLORS.critical;
-    const prodStatus  = prodClamped >= 4.3 ? 'Excellent' : prodClamped >= 4.0 ? 'Good' : prodClamped >= 3.6 ? 'Warning' : 'Critical';
+    const prodColor   = prodClamped >= PROD_THRESHOLD_EXCELLENT ? PERCENTAGE_COLORS.excellent
+                      : prodClamped >= PROD_THRESHOLD_GOOD      ? PERCENTAGE_COLORS.good
+                      : prodClamped >= PROD_THRESHOLD_WARNING   ? PERCENTAGE_COLORS.warning
+                      :                                          PERCENTAGE_COLORS.critical;
+    const prodStatus  = prodClamped >= PROD_THRESHOLD_EXCELLENT ? 'Excellent'
+                      : prodClamped >= PROD_THRESHOLD_GOOD      ? 'Good'
+                      : prodClamped >= PROD_THRESHOLD_WARNING   ? 'Warning'
+                      :                                          'Critical';
+    const prodBadgeClass = prodClamped >= PROD_THRESHOLD_EXCELLENT ? 'bg-primary'
+                         : prodClamped >= PROD_THRESHOLD_GOOD      ? 'bg-success'
+                         : prodClamped >= PROD_THRESHOLD_WARNING   ? 'bg-warning text-dark'
+                         :                                          'bg-danger';
 
     if (isMobile) {
         // ── Mobile: KPI gauge top half, productivity below, bars at bottom ──
         const halfH  = Math.round(H * (hasProductivity ? 0.38 : 0.55));
         const kpiCX  = W / 2;
         const kpiCY  = halfH * 0.84;
-        const kpiR   = Math.min((kpiCX - 18) / 1.22, kpiCY * 0.72);
+        const p2Y  = halfH + Math.round((H - halfH) * 0.5);
+        const gaugeR = hasProductivity
+            ? Math.min((kpiCX - 18) / 1.22, kpiCY * 0.72, (H - halfH) * 0.38)
+            : Math.min((kpiCX - 18) / 1.22, kpiCY * 0.72);
+        const kpiR   = gaugeR;
         const kpiAW  = Math.round(kpiR * 0.40);
         const valFS  = Math.max(18, Math.round(kpiR * 0.20));
         const lblFS  = Math.max(9,  Math.round(kpiR * 0.085));
@@ -155,12 +172,11 @@ function drawKPIGauge(overallPct, lineData) {
                 { text: 'Overall KPI',               color: '#8896a8', size: lblFS, baseline: 'top', y: kpiCY + 14 },
             ],
             { id: 'kpiGaugeLabel', text: overallPct.toFixed(1) + '% — ' + kpiStatus,
-              cls: kpiClamped >= 100 ? 'bg-primary' : kpiClamped >= 95 ? 'bg-success' : kpiClamped >= 85 ? 'bg-warning text-dark' : 'bg-danger' }
+              cls: kpiBadgeClass }
         );
 
         if (hasProductivity) {
-            const p2Y  = halfH + Math.round((H - halfH) * 0.5);
-            const p2R  = Math.min((kpiCX - 18) / 1.22, (H - halfH) * 0.38);
+            const p2R  = gaugeR;
             const p2AW = Math.round(p2R * 0.40);
             const p2VFS = Math.max(14, Math.round(p2R * 0.20));
             const p2LFS = Math.max(8,  Math.round(p2R * 0.082));
@@ -171,7 +187,7 @@ function drawKPIGauge(overallPct, lineData) {
                     { text: 'Productivity',         color: '#8896a8', size: p2LFS, baseline: 'top', y: p2Y + 12 },
                 ],
                 { id: 'productivityGaugeLabel', text: '⚡ ' + prodVal.toFixed(2) + ' — ' + prodStatus,
-                  cls: prodClamped >= 4.3 ? 'bg-primary' : prodClamped >= 4.0 ? 'bg-success' : prodClamped >= 3.6 ? 'bg-warning text-dark' : 'bg-danger' }
+                  cls: prodBadgeClass }
             );
         }
 
@@ -205,15 +221,17 @@ function drawKPIGauge(overallPct, lineData) {
 
     } else {
         // ── Desktop: KPI gauge left, Productivity center, per-line bars right ──
-        const kpiZoneW  = hasProductivity ? W * 0.35 : W * 0.64;
-        const prodZoneW = hasProductivity ? W * 0.29 : 0;
+        const gaugeZoneW = hasProductivity ? W * 0.32 : W * 0.64;
+        const kpiZoneW  = gaugeZoneW;
+        const prodZoneW = hasProductivity ? gaugeZoneW : 0;
         const barZoneX  = kpiZoneW + prodZoneW;
         const barZoneW  = W - barZoneX;
+        const sharedGaugeR = Math.min((gaugeZoneW / 2 - 20) / 1.22, H * 0.88 * 0.72);
 
         // KPI gauge
         const kpiCX = kpiZoneW / 2;
         const kpiCY = H * 0.88;
-        const kpiR  = Math.min((kpiCX - 20) / 1.22, kpiCY * 0.72);
+        const kpiR  = sharedGaugeR;
         const kpiAW = Math.round(kpiR * 0.40);
         const valFS = Math.max(20, Math.round(kpiR * 0.20));
         const lblFS = Math.max(10, Math.round(kpiR * 0.085));
@@ -225,14 +243,14 @@ function drawKPIGauge(overallPct, lineData) {
                 { text: 'Overall KPI',               color: '#8896a8', size: lblFS, baseline: 'top', y: kpiCY + 16 },
             ],
             { id: 'kpiGaugeLabel', text: overallPct.toFixed(1) + '% — ' + kpiStatus,
-              cls: kpiClamped >= 100 ? 'bg-primary' : kpiClamped >= 95 ? 'bg-success' : kpiClamped >= 85 ? 'bg-warning text-dark' : 'bg-danger' }
+              cls: kpiBadgeClass }
         );
 
         // Productivity gauge (center zone)
         if (hasProductivity) {
             const pCX  = kpiZoneW + prodZoneW / 2;
             const pCY  = H * 0.88;
-            const pR   = Math.min((prodZoneW / 2 - 20) / 1.22, pCY * 0.72);
+            const pR   = sharedGaugeR;
             const pAW  = Math.round(pR * 0.40);
             const pVFS = Math.max(16, Math.round(pR * 0.20));
             const pUFS = Math.max(9,  Math.round(pR * 0.09));
@@ -253,7 +271,7 @@ function drawKPIGauge(overallPct, lineData) {
                     { text: 'Productivity',         color: '#8896a8', size: pLFS, baseline: 'top',   y: pCY + 14 },
                 ],
                 { id: 'productivityGaugeLabel', text: '⚡ ' + prodVal.toFixed(2) + ' — ' + prodStatus,
-                  cls: prodClamped >= 4.3 ? 'bg-primary' : prodClamped >= 4.0 ? 'bg-success' : prodClamped >= 3.6 ? 'bg-warning text-dark' : 'bg-danger' }
+                  cls: prodBadgeClass }
             );
         }
 
@@ -440,9 +458,9 @@ function drawQualityKPIGauge(overallQuality, overallDefect, lineData) {
     const dSegs  = [
         { from: 0,                to: DR_THRESHOLD,      color: PERCENTAGE_COLORS.good     },
         { from: DR_THRESHOLD,      to: DR_WARN_THRESHOLD, color: PERCENTAGE_COLORS.warning  },
-        { from: DR_WARN_THRESHOLD, to: 2.5,               color: PERCENTAGE_COLORS.critical },
+        { from: DR_WARN_THRESHOLD, to: dMAX,              color: PERCENTAGE_COLORS.critical },
     ];
-    const dTicks   = [0, DR_THRESHOLD, DR_WARN_THRESHOLD, 2.5];
+    const dTicks   = [0, DR_THRESHOLD, DR_WARN_THRESHOLD, dMAX];
     const dVal     = Math.min(overallDefect || 0, dMAX);
     const dClamped = dVal;
     const defColor = dClamped <= DR_THRESHOLD      ? PERCENTAGE_COLORS.good
@@ -450,12 +468,17 @@ function drawQualityKPIGauge(overallQuality, overallDefect, lineData) {
                    :                                  PERCENTAGE_COLORS.critical;
     const dStatus  = dClamped <= DR_THRESHOLD      ? 'Good'
                    : dClamped <= DR_WARN_THRESHOLD  ? 'Warning' : 'Critical';
+    const defBadgeClass = dClamped <= DR_THRESHOLD      ? 'bg-success'
+                        : dClamped <= DR_WARN_THRESHOLD ? 'bg-warning text-dark'
+                        :                                 'bg-danger';
 
     if (isMobile) {
         // ── Mobile: Quality top, Defect center, bars bottom ──
         const halfH  = Math.round(H * 0.38);
         const qCX = W / 2, qCY = halfH * 0.84;
-        const qR  = Math.min((qCX - 18) / 1.22, qCY * 0.72);
+        const p2Y  = halfH + Math.round((H - halfH) * 0.5);
+        const sharedGaugeR = Math.min((qCX - 18) / 1.22, qCY * 0.72, (H - halfH) * 0.38);
+        const qR  = sharedGaugeR;
         const qAW = Math.round(qR * 0.40);
         drawSpeedometer(qCX, qCY, qR, qAW, overallQuality, qMAX, qMIN, qSegs,
             qTicks,
@@ -467,8 +490,7 @@ function drawQualityKPIGauge(overallQuality, overallDefect, lineData) {
               cls: qClamped >= QR_GOOD_THRESHOLD ? 'bg-success' : qClamped >= QR_WARN_THRESHOLD ? 'bg-warning text-dark' : 'bg-danger' }
         );
 
-        const p2Y  = halfH + Math.round((H - halfH) * 0.5);
-        const p2R  = Math.min(qCX - 18, (H - halfH) * 0.38);
+        const p2R  = sharedGaugeR;
         const p2AW = Math.round(p2R * 0.40);
         drawSpeedometer(qCX, p2Y, p2R, p2AW, dVal, dMAX, 0, dSegs,
             dTicks.map(v => ({ val: v, label: v + '%' })),
@@ -477,19 +499,21 @@ function drawQualityKPIGauge(overallQuality, overallDefect, lineData) {
                 { text: 'Defect Rate', color: '#8896a8', size: Math.max(8, Math.round(p2R * 0.082)), baseline: 'top', y: p2Y + 12 },
             ],
             { id: 'qualityDefectGaugeLabel', text: dVal.toFixed(2) + '% — ' + dStatus,
-              cls: dClamped <= 1.7 ? 'bg-success' : dClamped <= 2.0 ? 'bg-warning text-dark' : 'bg-danger' }
+              cls: defBadgeClass }
         );
 
     } else {
         // ── Desktop: Quality Rate left | Defect Rate center | per-line bars right ──
-        const qZoneW = W * 0.35;
-        const dZoneW = W * 0.29;
+        const gaugeZoneW = W * 0.32;
+        const qZoneW = gaugeZoneW;
+        const dZoneW = gaugeZoneW;
         const barZoneX = qZoneW + dZoneW;
+        const sharedGaugeR = Math.min((gaugeZoneW / 2 - 20) / 1.22, H * 0.88 * 0.72);
 
         // Quality Rate gauge (left)
         const qCX = qZoneW / 2;
         const qCY = H * 0.88;
-        const qR  = Math.min((qCX - 20) / 1.22, qCY * 0.72);
+        const qR  = sharedGaugeR;
         const qAW = Math.round(qR * 0.40);
 
         drawSpeedometer(qCX, qCY, qR, qAW, overallQuality, qMAX, qMIN, qSegs,
@@ -510,7 +534,7 @@ function drawQualityKPIGauge(overallQuality, overallDefect, lineData) {
         // Defect Rate gauge (center)
         const dCX  = qZoneW + dZoneW / 2;
         const dCY  = H * 0.88;
-        const dR   = Math.min((dZoneW / 2 - 20) / 1.22, dCY * 0.72);
+        const dR   = sharedGaugeR;
         const dAW  = Math.round(dR * 0.40);
         const dVFS = Math.max(16, Math.round(dR * 0.20));
         const dLFS = Math.max(9,  Math.round(dR * 0.082));
@@ -522,7 +546,7 @@ function drawQualityKPIGauge(overallQuality, overallDefect, lineData) {
                 { text: 'Defect Rate',          color: '#8896a8', size: dLFS, baseline: 'top', y: dCY + 14 },
             ],
             { id: 'qualityDefectGaugeLabel', text: dVal.toFixed(2) + '% — ' + dStatus,
-              cls: dClamped <= 1.7 ? 'bg-success' : dClamped <= 2.0 ? 'bg-warning text-dark' : 'bg-danger' }
+              cls: defBadgeClass }
         );
 
         // Divider center|bars

@@ -790,7 +790,7 @@ const drTablePlugin = {
             // DR%
             const drColor = m.dr === null ? '#6c757d'
                 : m.dr <= DR_THRESHOLD            ? '#28a745'
-                : m.dr <= DR_THRESHOLD * 1.18     ? '#ffc107'
+                : m.dr <= DR_WARN_THRESHOLD       ? '#ffc107'
                 : '#dc3545';
             ctx.fillStyle = drColor;
             ctx.font = 'bold 10px sans-serif';
@@ -831,7 +831,7 @@ async function loadMonthlyDrChart() {
         const barBg = drValues.map(v =>
             v === null      ? 'rgba(100,100,100,0.18)'
             : v <= DR_THRESHOLD      ? 'rgba(40,167,69,0.38)'
-            : v <= DR_THRESHOLD * 1.18 ? 'rgba(255,193,7,0.38)'
+            : v <= DR_WARN_THRESHOLD ? 'rgba(255,193,7,0.38)'
             :                           'rgba(220,53,69,0.38)'
         );
         const barBorder = barBg.map(c => c.replace(/[\d.]+\)$/, '1)'));
@@ -846,7 +846,7 @@ async function loadMonthlyDrChart() {
         const avgLine   = labels.map(() => avgDr);
         const avgColor  = avgDr === null ? '#8896a8'
                         : avgDr <= DR_THRESHOLD ? '#28a745'
-                        : avgDr <= DR_THRESHOLD * 1.18 ? '#ff6207'
+                        : avgDr <= DR_WARN_THRESHOLD ? '#ff6207'
                         : '#dc3545';
 
         const datasets = [

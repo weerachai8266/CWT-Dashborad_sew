@@ -1,0 +1,11 @@
+{
+    "dr_threshold": 1.7,
+    "dr_warn_threshold": 2.0,
+    "qr_good_threshold": 98,
+    "qr_warn_threshold": 96,
+    "perf_threshold_excellent": 101,
+    "perf_threshold_good": 95,
+    "perf_threshold_warning": 85,
+    "prod_gauge_max": 5.0,
+    "prod_target": 4.0
+}

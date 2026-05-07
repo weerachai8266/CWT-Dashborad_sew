@@ -234,6 +234,7 @@ body {
     transition: left 0.25s ease;
     line-height: 1.4;
 }
+.dashboard-footer.sidebar-collapsed { left: 60px; }
 .footer-inner {
     display: flex;
     align-items: center;
@@ -516,6 +517,188 @@ tr.qt-summary td:first-child {
     border-left: 3px solid var(--accent);
 }
 
+/* ===== Config page ===== */
+.config-page {
+    background: var(--bg-body);
+}
+.config-page .navbar-brand {
+    color: var(--text-primary) !important;
+    letter-spacing: 0.2px;
+}
+.config-main {
+    width: 100%;
+}
+.config-login-card {
+    margin-top: 8vh;
+    overflow: hidden;
+}
+.config-card {
+    overflow: hidden;
+}
+.config-card .card-header,
+.config-login-card .card-header {
+    padding: 14px 18px;
+}
+.config-card .card-header h5,
+.config-login-card .card-header h5 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+}
+.config-card .card-body,
+.config-login-card .card-body {
+    padding: 18px;
+}
+.config-page .form-label {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    font-weight: 500;
+    margin-bottom: 6px;
+}
+.config-page .form-control {
+    min-height: 38px;
+}
+.config-page .btn {
+    border-radius: 6px;
+    font-weight: 500;
+}
+.config-page .btn-outline-primary,
+.config-page .btn-outline-danger {
+    background: rgba(255,255,255,0.02);
+}
+.config-page .btn-outline-primary {
+    border-color: rgba(91,141,238,0.45);
+    color: #a3c0f8;
+}
+.config-page .btn-outline-primary:hover {
+    background: rgba(91,141,238,0.16);
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+.config-page .btn-outline-danger {
+    border-color: rgba(245,83,83,0.45);
+    color: #f88;
+}
+.config-page .btn-outline-danger:hover {
+    background: rgba(245,83,83,0.14);
+    border-color: var(--accent-red);
+    color: #fff;
+}
+.config-table {
+    margin-bottom: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+.config-table thead th {
+    background: rgba(91,141,238,0.12) !important;
+    color: #a3c0f8 !important;
+    border-bottom: 1px solid rgba(91,141,238,0.22) !important;
+}
+.config-table tbody td {
+    background: rgba(30,34,41,0.92) !important;
+    color: var(--text-primary) !important;
+}
+.config-table th,
+.config-table td {
+    padding: 12px 14px !important;
+    vertical-align: middle;
+}
+.config-table tbody tr:nth-of-type(odd) td {
+    background: rgba(37,42,51,0.78) !important;
+}
+.config-table tbody tr:hover td {
+    background: rgba(91,141,238,0.10) !important;
+}
+.config-table tbody td:first-child {
+    color: var(--text-primary) !important;
+}
+.config-table tbody tr:last-child td {
+    border-bottom: 0 !important;
+}
+.config-table .form-control {
+    max-width: 180px;
+    background: rgba(17,19,24,0.65) !important;
+    border-color: rgba(255,255,255,0.10) !important;
+}
+.config-table .badge.bg-success {
+    background: rgba(52,199,128,0.18) !important;
+    color: #5ee0a0 !important;
+}
+.config-table .badge.bg-secondary {
+    background: rgba(136,150,168,0.16) !important;
+    color: #aab6c5 !important;
+}
+.config-kpi-section {
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.018);
+    border-radius: 8px;
+    padding: 14px;
+    height: 100%;
+}
+.config-kpi-section-title {
+    color: #a3c0f8;
+    font-size: 0.98rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(91,141,238,0.18);
+}
+.config-gauge-block {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(220px, 0.75fr);
+    gap: 14px;
+    padding: 14px;
+    border: 1px solid rgba(255,255,255,0.055);
+    border-radius: 8px;
+    background: rgba(17,19,24,0.34);
+}
+.config-gauge-block + .config-gauge-block {
+    margin-top: 14px;
+}
+.config-gauge-form h6 {
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+.config-kpi-preview {
+    border-left: 1px solid rgba(91,141,238,0.18);
+    padding-left: 14px;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    line-height: 1.9;
+}
+.config-kpi-preview .preview-title {
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+.preview-dot {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    margin-right: 6px;
+}
+.preview-dot.critical { background: var(--critical-color); }
+.preview-dot.warning { background: var(--warning-color); }
+.preview-dot.good { background: var(--good-color); }
+.preview-dot.excellent { background: var(--excellent-color); }
+.config-page .modal-content {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-lg);
+}
+.config-page .modal-header,
+.config-page .modal-footer {
+    border-color: var(--border);
+    background: var(--bg-card2);
+}
+.config-page .btn-close {
+    filter: invert(1) grayscale(1);
+    opacity: 0.75;
+}
+
 /* ── KPI Speedometer Gauge ───────────────────────────────── */
 .kpi-gauge-card {
     border: 1px solid var(--border);
@@ -604,6 +787,16 @@ tr.qt-summary td:first-child {
     /* Summary cards: 2-per-row on mobile */
     .summary-card h4,
     .summary-card h5 { font-size: 1.4rem; }
+
+    .config-gauge-block {
+        grid-template-columns: 1fr;
+    }
+    .config-kpi-preview {
+        border-left: 0;
+        border-top: 1px solid rgba(91,141,238,0.18);
+        padding-left: 0;
+        padding-top: 12px;
+    }
 
     /* Charts: full width */
     .col-lg-6.col-md-12 { width: 100%; }
