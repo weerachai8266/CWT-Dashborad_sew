@@ -1,27 +1,16 @@
 <?php
-// ============================================================
-//  AI Report API  –  factory-analyst via Ollama
-//  วิธีปิด AI: เปลี่ยน AI_ENABLED เป็น false
-// ============================================================
-define('AI_ENABLED', true);
-define('OLLAMA_HOST', '192.168.0.14');
-define('OLLAMA_PORT', 11434);
-define('OLLAMA_MODEL', 'factory-analyst');
-define('OLLAMA_TIMEOUT', 300); // วินาที (model 30B อาจใช้ 1-3 นาที)
+// AI Report API — factory-analyst via Ollama
+// ปรับตั้งค่า: config/ai.php  |  ปิด AI: set AI_ENABLED=false ที่นั่น
+require_once __DIR__ . '/../config/ai.php';
+require_once __DIR__ . '/../config/app.php';
 
-// ============================================================
-ini_set('display_errors', 0);
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
 error_reporting(E_ALL);
-set_time_limit(360); // ให้ PHP รอ Ollama ได้นานพอ
-header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+set_time_limit(360);
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(204);
-    exit;
-}
+header('Content-Type: application/json; charset=utf-8');
+setCorsHeaders();
 
 // ── helper ──────────────────────────────────────────────────
 function jsonOut(bool $ok, $data = null, string $msg = ''): void {
@@ -501,13 +490,9 @@ function callOllama(string $prompt): array {
 //  Main
 // ============================================================
 try {
-    $prod = ($report_type !== 'quality') ? getProductionSummary($conn, $date_start, $date_end) : [];
+    // production data always needed (prompt uses $prod['period'] for all report types)
+    $prod = getProductionSummary($conn, $date_start, $date_end);
     $qual = ($report_type !== 'production') ? getQualitySummary($conn, $date_start, $date_end) : [];
-
-    // ถ้า type เป็น production แต่ยังไม่มี prod data
-    if ($report_type === 'quality') {
-        $prod = getProductionSummary($conn, $date_start, $date_end); // ยังต้องการ period
-    }
 
     $prompt = buildPrompt($report_type, $prod, $qual);
     $ai     = callOllama($prompt);

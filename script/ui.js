@@ -1,4 +1,4 @@
-// ==================== Sidebar Collapse Toggle ====================
+// ── Sidebar Collapse Toggle ────────────────────────────────────────────────
 (function () {
     const sidebar     = document.getElementById('mainSidebar');
     const mainContent = document.querySelector('.main-content');
@@ -40,8 +40,7 @@
 
     toggleBtn.addEventListener('click', () => {
         if (isMobile()) {
-            const isOpen = sidebar.classList.contains('mobile-open');
-            apply(isOpen);
+            apply(sidebar.classList.contains('mobile-open'));
         } else {
             const collapsed = !sidebar.classList.contains('collapsed');
             apply(collapsed);
@@ -51,48 +50,51 @@
     });
 
     backdrop.addEventListener('click', () => apply(true));
-
     window.addEventListener('resize', () => {
         apply(isMobile() ? true : localStorage.getItem('sidebarCollapsed') === '1');
     });
 })();
 
-// UI Helper Functions
-function showLoading(show = true) {
-    const loadingState = document.getElementById('loadingState');
-    const spinner = document.getElementById('loadingSpinner');
+// ── Generic Loading/Error State Helpers ───────────────────────────────────
+function setLoadingVisible(stateId, spinnerId, show) {
+    const stateEl = document.getElementById(stateId);
+    if (!stateEl) return;
+    stateEl.classList.toggle('d-none', !show);
+    stateEl.classList.toggle('d-flex', show);
+    const spinnerEl = document.getElementById(spinnerId);
+    if (spinnerEl) spinnerEl.classList.toggle('d-none', !show);
+}
 
-    if (show) {
-        loadingState.classList.remove('d-none');
-        spinner.classList.remove('d-none');
-    } else {
-        loadingState.classList.add('d-none');
-        spinner.classList.add('d-none');
+function setErrorVisible(stateId, msgId, show, message = '') {
+    const stateEl = document.getElementById(stateId);
+    if (!stateEl) return;
+    stateEl.classList.toggle('d-none', !show);
+    stateEl.classList.toggle('d-flex', show);
+    if (show && msgId) {
+        const msgEl = document.getElementById(msgId);
+        if (msgEl) msgEl.textContent = message;
     }
 }
 
-function showError(message) {
-    const errorState = document.getElementById('errorState');
-    const errorMessage = document.getElementById('errorMessage');
+// Production tab loading/error
+const showLoading      = (show = true)          => setLoadingVisible('loadingState', 'loadingSpinner', show);
+const hideError        = ()                      => setErrorVisible('errorState', null, false);
+const showError        = (msg)                   => setErrorVisible('errorState', 'errorMessage', true, msg);
 
-    errorMessage.textContent = message;
-    errorState.classList.remove('d-none');
-}
+// Quality tab loading/error
+const showQualityLoading = (show = true)         => setLoadingVisible('qualityLoadingState', 'qualityLoadingSpinner', show);
+const hideQualityError   = ()                    => setErrorVisible('qualityErrorState', null, false);
+const showQualityError   = (msg)                 => setErrorVisible('qualityErrorState', 'qualityErrorMessage', true, msg);
 
-function hideError() {
-    const errorState = document.getElementById('errorState');
-    errorState.classList.add('d-none');
-}
-
-// Export Date Dialog
+// ── Export Date Dialog ────────────────────────────────────────────────────
 function openExportDateDialog(options = {}) {
     const {
-        title = 'Export',
-        singleDay = false,
-        subtitle = '',
-        onConfirm = () => {},
+        title       = 'Export',
+        singleDay   = false,
+        subtitle    = '',
+        onConfirm   = () => {},
         defaultStart = new Date().toISOString().split('T')[0],
-        defaultEnd = defaultStart
+        defaultEnd   = defaultStart,
     } = options;
 
     Swal.fire({
@@ -114,7 +116,7 @@ function openExportDateDialog(options = {}) {
         focusConfirm: false,
         preConfirm: () => {
             const start = document.getElementById('exp_start').value;
-            const end = singleDay ? start : document.getElementById('exp_end').value;
+            const end   = singleDay ? start : document.getElementById('exp_end').value;
             if (!start || !end) {
                 Swal.showValidationMessage('กรุณาเลือกวันที่');
                 return false;
@@ -124,19 +126,18 @@ function openExportDateDialog(options = {}) {
                 return false;
             }
             return { start, end };
-        }
+        },
     }).then(res => {
         if (!res.isConfirmed) return;
         onConfirm(res.value);
     });
 }
 
-// Initialize export buttons
 function initExportButtons() {
     document.querySelectorAll('.btn-export-date').forEach(btn => {
         btn.addEventListener('click', () => {
             const module = btn.dataset.module || 'export';
-            const single = (btn.dataset.single === '1');
+            const single = btn.dataset.single === '1';
             openExportDateDialog({
                 title: `Export ${module}`,
                 singleDay: single,
@@ -144,63 +145,42 @@ function initExportButtons() {
                     Swal.fire({
                         title: 'กำลังสร้างไฟล์...',
                         allowOutsideClick: false,
-                        allowEscapeKey: false,
+                        allowEscapeKey:    false,
                         didOpen: () => {
                             Swal.showLoading();
-                            let url;
-                            switch (module) {
-                                case 'production':
-                                    url = `api/export_product.php?start_date=${start}&end_date=${end}`;
-                                    break;
-                                case 'quality':
-                                    url = `api/export_quality.php?start_date=${start}&end_date=${end}`;
-                                    break;
-                                default:
-                                    url = `api/export_${module}.php?start_date=${start}&end_date=${end}`;
-                            }
-                            window.location = url;
+                            const urlMap = {
+                                production: `api/export_product.php?start_date=${start}&end_date=${end}`,
+                                quality:    `api/export_quality.php?start_date=${start}&end_date=${end}`,
+                            };
+                            window.location = urlMap[module] ?? `api/export_${module}.php?start_date=${start}&end_date=${end}`;
                             setTimeout(() => Swal.close(), 1500);
-                        }
+                        },
                     });
-                }
+                },
             });
         });
     });
 }
 
-// Event Listeners
-document.getElementById('production_btnFilter').addEventListener('click', async function() {
-    await loadProductData();
-});
+// ── Event Listeners ───────────────────────────────────────────────────────
+document.getElementById('production_btnFilter').addEventListener('click', () => loadProductData());
+document.getElementById('quality_btnFilter').addEventListener('click',    () => loadQualityData());
+document.getElementById('realTimeUpdate').addEventListener('change',      () => startRealTimeUpdate());
 
-document.getElementById('quality_btnFilter').addEventListener('click', async function() {
-    await loadQualityData();
-});
-
-document.getElementById('realTimeUpdate').addEventListener('change', function() {
-    startRealTimeUpdate();
-});
-
-// Toggle display type
+// Display type toggle
 function toggleDisplayType() {
-    const selectedRadio = document.querySelector('input[name="displayType"]:checked');
-    currentDisplayType = selectedRadio ? selectedRadio.value : 'percentage';
+    const radio = document.querySelector('input[name="displayType"]:checked');
+    currentDisplayType = radio ? radio.value : 'percentage';
 
     Object.keys(CHART_COLORS).forEach(line => {
         const canvasId = line === 'third' ? 'chart3RD' : `chart${line.toUpperCase()}`;
         const chart = charts[canvasId];
-
-        if (chart) {
-            if (currentDisplayType === 'percentage') {
-                chart.options.scales.y.ticks.callback = function(value) {
-                    return value + '%';
-                };
-            } else {
-                delete chart.options.scales.y.max;
-                chart.options.scales.y.ticks.callback = function(value) {
-                    return value;
-                };
-            }
+        if (!chart) return;
+        if (currentDisplayType === 'percentage') {
+            chart.options.scales.y.ticks.callback = v => v + '%';
+        } else {
+            delete chart.options.scales.y.max;
+            chart.options.scales.y.ticks.callback = v => v;
         }
     });
 
@@ -209,77 +189,86 @@ function toggleDisplayType() {
 }
 
 document.querySelectorAll('input[name="displayType"]').forEach(radio => {
-    radio.addEventListener('change', function() {
+    radio.addEventListener('change', function () {
         currentDisplayType = this.value;
         toggleDisplayType();
     });
 });
 
-// Add tooltip functionality for charts
+// Chart tooltips
 function addChartTooltips() {
     Object.keys(charts).forEach(canvasId => {
         const chart = charts[canvasId];
-        if (chart) {
-            chart.options.plugins.tooltip = {
-                callbacks: {
-                    label: function(context) {
-                        const label = context.dataset.label || '';
-                        const value = context.parsed.y;
-
-                        if (currentDisplayType === 'percentage') {
-                            return `${label}: ${value}%`;
-                        } else {
-                            return `${label}: ${value} ชิ้น`;
-                        }
-                    },
-                    afterLabel: function(context) {
-                        if (currentDisplayType === 'percentage') {
-                            const percentage = context.parsed.y;
-                            let status = '';
-                            if (percentage >= PERF_THRESHOLD_EXCELLENT) status = '🔵 เกินเป้าหมาย';
-                            else if (percentage >= PERF_THRESHOLD_GOOD)      status = '🟢 ตามเป้าหมาย';
-                            else if (percentage >= PERF_THRESHOLD_WARNING)   status = '🟡 ใกล้เป้าหมาย';
-                            else status = '🔴 ต่ำกว่าเป้าหมาย';
-
-                            return status;
-                        }
-                        return '';
-                    }
-                }
-            };
-        }
+        if (!chart) return;
+        chart.options.plugins.tooltip = {
+            callbacks: {
+                label(context) {
+                    const label = context.dataset.label || '';
+                    const value = context.parsed.y;
+                    return currentDisplayType === 'percentage'
+                        ? `${label}: ${value}%`
+                        : `${label}: ${value} ชิ้น`;
+                },
+                afterLabel(context) {
+                    if (currentDisplayType !== 'percentage') return '';
+                    const pct = context.parsed.y;
+                    if (pct >= PERF_THRESHOLD_EXCELLENT) return '🔵 เกินเป้าหมาย';
+                    if (pct >= PERF_THRESHOLD_GOOD)      return '🟢 ตามเป้าหมาย';
+                    if (pct >= PERF_THRESHOLD_WARNING)   return '🟡 ใกล้เป้าหมาย';
+                    return '🔴 ต่ำกว่าเป้าหมาย';
+                },
+            },
+        };
     });
 }
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', async function() {
-    const today = new Date().toISOString().split('T')[0];
-    const _n = new Date();
-    const firstOfMonth = `${_n.getFullYear()}-${String(_n.getMonth() + 1).padStart(2, '0')}-01`;
+// ── Dashboard Initialisation ──────────────────────────────────────────────
+function initDashboard() {
+    if (window._dashboardInitialized) return;
+    window._dashboardInitialized = true;
+
+    const today        = new Date().toISOString().split('T')[0];
+    const now          = new Date();
+    const firstOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
     document.getElementById('production_date_start').value = today;
-    document.getElementById('production_date_end').value = today;
+    document.getElementById('production_date_end').value   = today;
+    document.getElementById('quality_date_start').value    = firstOfMonth;
+    document.getElementById('quality_date_end').value      = today;
 
-    document.getElementById('quality_date_start').value = firstOfMonth;
-    document.getElementById('quality_date_end').value = today;
+    const radio = document.querySelector('input[name="displayType"]:checked');
+    currentDisplayType = radio ? radio.value : 'percentage';
 
     initExportButtons();
     initializeCharts();
     addChartTooltips();
-
     window._productivityLastRate = 0;
-    await loadProductData();
 
-    // โหลด Quality ใน background หลัง Production เสร็จ
-    loadQualityData();
+    document.addEventListener('shown.bs.tab', function (e) {
+        if (e.target.id === 'quality-tab') {
+            showLoading(false);
+            hideError();
+            loadQualityData();
+        }
+        if (e.target.id === 'production-tab') {
+            showQualityLoading(false);
+            hideQualityError();
+            loadProductData();
+        }
+    });
+
+    const activePane = document.querySelector('.tab-pane.active');
+    if (activePane?.id === 'quality') {
+        setTimeout(() => loadQualityData(), 0);
+    } else {
+        setTimeout(() => loadProductData(), 0);
+    }
 
     startRealTimeUpdate();
-    toggleDisplayType();
+}
 
-    // ใช้ event delegation บน document เพื่อรับ tab events ได้เสมอ
-    // quality-tab: reload เมื่อ user คลิก tab (หรือกด ตกลง)
-    document.addEventListener('shown.bs.tab', function(e) {
-        if (e.target.id === 'quality-tab')    loadQualityData();
-        if (e.target.id === 'production-tab') loadProductData();
-    });
-});
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initDashboard);
+} else {
+    initDashboard();
+}

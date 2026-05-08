@@ -1,19 +1,21 @@
 <?php
-ini_set('display_errors', 1);
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
 error_reporting(E_ALL);
-error_log("API called with dates: start={$_GET['start_date']}, end={$_GET['end_date']}");
 
-// กำหนด Content-Type เป็น JSON
-header('Content-Type: application/json');
-include(__DIR__ . "/../config/db.php"); // เชื่อมต่อฐานข้อมูล
+require_once __DIR__ . '/../config/app.php';
+header('Content-Type: application/json; charset=utf-8');
+setCorsHeaders();
 
-// Validate dates
+include __DIR__ . '/../config/db.php';
+
 $start_date = !empty($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-d');
-$end_date = !empty($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
+$end_date   = !empty($_GET['end_date'])   ? $_GET['end_date']   : date('Y-m-d');
 
-// if (!strtotime($start_date) || !strtotime($end_date)) {
-//     throw new Exception('Invalid date format');
-// }
+if (!validateDate($start_date) || !validateDate($end_date)) {
+    echo json_encode(['success' => false, 'message' => 'Invalid date format']);
+    exit;
+}
 
 try {
     // ทดสอบการเชื่อมต่อ Database

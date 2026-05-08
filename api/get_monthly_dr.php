@@ -1,8 +1,18 @@
 <?php
-header('Content-Type: application/json');
-include(__DIR__ . "/../config/db.php");
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+
+require_once __DIR__ . '/../config/app.php';
+header('Content-Type: application/json; charset=utf-8');
+setCorsHeaders();
+
+include __DIR__ . '/../config/db.php';
 
 $year = isset($_GET['year']) ? (int)$_GET['year'] : (int)date('Y');
+if ($year < 2000 || $year > 2100) {
+    echo json_encode(['success' => false, 'message' => 'Invalid year']);
+    exit;
+}
 
 try {
     if (!$conn) throw new PDOException("Database connection failed");

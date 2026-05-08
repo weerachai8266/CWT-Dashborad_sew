@@ -284,12 +284,11 @@ body {
     box-shadow: 0 4px 16px rgba(0,0,0,0.35);
     border-color: rgba(91,141,238,0.3);
 }
-.summary-card h4, .summary-card h5 {
+.summary-card h3, .summary-card h4, .summary-card h5 {
     font-size: 2rem;
     font-weight: bold;
     transition: all 0.3s ease;
 }
-
 /* ===== Performance cards ===== */
 .performance-card {
     transition: all 0.2s ease;
@@ -886,6 +885,7 @@ tr.qt-summary td:first-child {
     }
 
     /* Summary cards: 2-per-row on mobile */
+    .summary-card h3,
     .summary-card h4,
     .summary-card h5 { font-size: 1.4rem; }
 
@@ -957,3 +957,20 @@ tr.qt-summary td:first-child {
 .ai-report-content strong { color: #f0c27f; }
 .ai-report-content em     { color: #93cfe5; }
 .ai-report-content hr     { border-color: rgba(255,255,255,.12); margin: 0.8rem 0; }
+
+
+/* Legend dot — replaces repeated inline styles in index.php */
+.legend-dot {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+.legend-dot.square { border-radius: 2px; }
+.legend-dot-critical  { background: #dc3545; }
+.legend-dot-warning   { background: #ffc107; }
+.legend-dot-good      { background: #28a745; }
+.legend-dot-excellent { background: #007bff; }
+.legend-dot-defect    { background: #fd7e14; }

@@ -1,14 +1,12 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-ini_set('log_errors', 1);
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
 error_reporting(E_ALL);
 date_default_timezone_set('Asia/Bangkok');
 
+require_once __DIR__ . '/../config/app.php';
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+setCorsHeaders();
 
 $response = ['success' => false, 'data' => [], 'message' => ''];
 
@@ -26,11 +24,10 @@ try {
     
     // รับพารามิเตอร์
     $start_date = $_GET['start_date'] ?? date('Y-m-d');
-    $end_date = $_GET['end_date'] ?? date('Y-m-d');
-    $action = $_GET['action'] ?? 'kpis';
-    
-    // Validate dates
-    if (!strtotime($start_date) || !strtotime($end_date)) {
+    $end_date   = $_GET['end_date']   ?? date('Y-m-d');
+    $action     = $_GET['action']     ?? 'kpis';
+
+    if (!validateDate($start_date) || !validateDate($end_date)) {
         throw new Exception('Invalid date format');
     }
     

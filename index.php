@@ -155,7 +155,8 @@
                         </div>
 
                         <!-- Buttons pushed to right -->
-                        <div class="ms-auto d-flex gap-2">
+                        <div class="ms-auto d-flex gap-2 align-items-center flex-wrap">
+                            <span id="productionLastUpdateLabel" class="badge bg-info" style="font-size:0.72rem;">Last update: --</span>
                             <button id="production_btnFilter" class="btn btn-primary btn-sm">ตกลง</button>
                             <button class="btn btn-success btn-sm btn-export-date" data-module="production">Export</button>
                         </div>
@@ -173,42 +174,42 @@
                                     <div class="row text-center">
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="fc">
-                                                <h4 class="text-success" id="totalFC">0</h4>
+                                                <h3 class="text-success" id="totalFC">0</h3>
                                                 <small id="labelFC">F/C ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentageFC"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="fb">
-                                                <h4 class="text-warning" id="totalFB">0</h4>
+                                                <h3 class="text-warning" id="totalFB">0</h3>
                                                 <small id="labelFB">F/B ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentageFB"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="rc">
-                                                <h4 class="text-danger" id="totalRC">0</h4>
+                                                <h3 class="text-danger" id="totalRC">0</h3>
                                                 <small id="labelRC">R/C ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentageRC"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="rb">
-                                                <h4 style="color: #6f42c1;" id="totalRB">0</h4>
+                                                <h3 style="color: #6f42c1;" id="totalRB">0</h3>
                                                 <small id="labelRB">R/B ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentageRB"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="third">
-                                                <h4 style="color: #fd7e14;" id="total3RD">0</h4>
+                                                <h3 style="color: #fd7e14;" id="total3RD">0</h3>
                                                 <small id="label3RD">3RD ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentage3RD"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="sub">
-                                                <h4 style="color: #20c997;" id="totalSUB">0</h4>
+                                                <h3 style="color: #20c997;" id="totalSUB">0</h3>
                                                 <small id="labelSUB">Sub ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentageSUB"></span>
                                             </div>
@@ -224,12 +225,15 @@
                         <div class="col-12">
                             <div class="card kpi-gauge-card">
                                 <div class="card-header bg-info text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                    <h6 class="mb-0">🎯 Performance KPI Gauge — ภาพรวมประสิทธิภาพการผลิต</h6>
+                                    <h6 class="mb-0">
+                                        🎯 Performance KPI
+                                        <!-- <a href="pages/formulas.php" class="ms-2 text-decoration-none text-white" title="อธิบายสูตร Overall KPI และ Productivity">สูตร</a> -->
+                                    </h6>
                                     <div class="d-flex gap-3 flex-wrap align-items-center" style="font-size:0.75rem;">
-                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#dc3545;margin-right:4px;"></span>Critical &lt;<span class="perf-warning-label">85</span>%</span>
-                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#ffc107;margin-right:4px;"></span>Warning <span class="perf-warning-label">85</span>–<span class="perf-good-prev-label">94</span>%</span>
-                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#28a745;margin-right:4px;"></span>Good <span class="perf-good-label">95</span>–<span class="perf-excellent-prev-label">100</span>%</span>
-                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#007bff;margin-right:4px;"></span>Excellent ≥<span class="perf-excellent-label">101</span>%</span>
+                                        <span><span class="legend-dot legend-dot-critical"></span>Critical &lt;<span class="perf-warning-label">85</span>%</span>
+                                        <span><span class="legend-dot legend-dot-warning"></span>Warning <span class="perf-warning-label">85</span>–<span class="perf-good-prev-label">94</span>%</span>
+                                        <span><span class="legend-dot legend-dot-good"></span>Good <span class="perf-good-label">95</span>–<span class="perf-excellent-prev-label">100</span>%</span>
+                                        <span><span class="legend-dot legend-dot-excellent"></span>Excellent ≥<span class="perf-excellent-label">101</span>%</span>
                                     </div>
                                     <!-- <div class="d-flex gap-2 align-items-center flex-wrap">
                                         <span id="kpiGaugeLabel" class="badge bg-secondary fs-6 px-3 py-1">--</span>
@@ -398,7 +402,7 @@
                 <!-- Quality Data Tab -->
                 <div class="tab-pane fade" id="quality" role="tabpanel">
                     <!-- Quality Filter -->
-                    <div class="d-flex flex-wrap align-items-center gap-2 py-2 px-1" id="quality-filter-form">
+                    <div class="d-flex flex-wrap align-items-center gap-2 py-2 px-1 position-relative" id="quality-filter-form">
                         <!-- Date Range -->
                         <div class="input-group input-group-sm" style="width:auto;">
                             <label class="input-group-text">📅</label>
@@ -407,6 +411,16 @@
                         </div>
 
                         <!-- Buttons pushed to right -->
+                        <div id="qualityLoadingState" class="d-none align-items-center gap-1" style="font-size:0.8rem;position:absolute;left:50%;transform:translateX(-50%);">
+                            <div id="qualityLoadingSpinner" class="spinner-border spinner-border-sm text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <span class="text-muted">กำลังโหลด...</span>
+                        </div>
+                        <div id="qualityErrorState" class="d-none align-items-center gap-1" style="font-size:0.8rem;position:absolute;left:50%;transform:translateX(-50%);">
+                            <span class="badge bg-danger">⚠ <span id="qualityErrorMessage">เกิดข้อผิดพลาด</span></span>
+                        </div>
+
                         <div class="ms-auto d-flex gap-2">
                             <button id="quality_btnFilter" class="btn btn-primary btn-sm">ตกลง</button>
                             <button class="btn btn-success btn-sm btn-export-date" data-module="quality">Export</button>
@@ -424,42 +438,42 @@
                                     <div class="row text-center">
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="fc">
-                                                <h4 class="text-success" id="qualityFC">0</h4>
+                                                <h3 class="text-success" id="qualityFC">0</h3>
                                                 <small id="labelqualityFC">F/C ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentagequalityFC"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="fb">
-                                                <h4 class="text-warning" id="qualityFB">0</h4>
+                                                <h3 class="text-warning" id="qualityFB">0</h3>
                                                 <small id="labelqualityFB">F/B ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentagequalityFB"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="rc">
-                                                <h4 class="text-danger" id="qualityRC">0</h4>
+                                                <h3 class="text-danger" id="qualityRC">0</h3>
                                                 <small id="labelqualityRC">R/C ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentagequalityRC"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="rb">
-                                                <h4 style="color: #6f42c1;" id="qualityRB">0</h4>
+                                                <h3 style="color: #6f42c1;" id="qualityRB">0</h3>
                                                 <small id="labelqualityRB">R/B ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentagequalityRB"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="third">
-                                                <h4 style="color: #fd7e14;" id="quality3RD">0</h4>
+                                                <h3 style="color: #fd7e14;" id="quality3RD">0</h3>
                                                 <small id="labelquality3RD">3RD ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentagequality3RD"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-2">
                                             <div class="border rounded p-3 position-relative summary-card" data-line="sub">
-                                                <h4 style="color: #20c997;" id="qualitySUB">0</h4>
+                                                <h3 style="color: #20c997;" id="qualitySUB">0</h3>
                                                 <small id="labelqualitySUB">Sub ชิ้น</small>
                                                 <span class="percentage-badge d-none" id="percentagequalitySUB"></span>
                                             </div>
@@ -477,10 +491,10 @@
                                 <div class="card-header bg-info text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
                                     <h6 class="mb-0">🎯 Quality KPI Gauge — ภาพรวมคุณภาพการผลิต</h6>
                                     <div class="d-flex gap-3 flex-wrap align-items-center" style="font-size:0.75rem;">
-                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#28a745;margin-right:4px;"></span>≤ <span class="dr-threshold-label">1.7</span>% (Good)</span>
-                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#ffc107;margin-right:4px;"></span>≤ <span class="dr-warn-threshold-label">2.0</span>% (Warning)</span>
-                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#dc3545;margin-right:4px;"></span>&gt; <span class="dr-warn-threshold-label">2.0</span>% (Critical)</span>
-                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#fd7e14;margin-right:4px;"></span>Defect Rate</span>
+                                        <span><span class="legend-dot legend-dot-good"></span>≤ <span class="dr-threshold-label">1.7</span>% (Good)</span>
+                                        <span><span class="legend-dot legend-dot-warning"></span>≤ <span class="dr-warn-threshold-label">2.0</span>% (Warning)</span>
+                                        <span><span class="legend-dot legend-dot-critical"></span>&gt; <span class="dr-warn-threshold-label">2.0</span>% (Critical)</span>
+                                        <span><span class="legend-dot legend-dot-defect"></span>Defect Rate</span>
                                     </div>
                                     <div class="d-flex gap-2 align-items-center flex-wrap">
                                         <span id="qualityKpiGaugeLabel" class="badge bg-secondary fs-6 px-3 py-1">--</span>
@@ -501,10 +515,10 @@
                                 <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center flex-wrap gap-2">
                                     <h6 class="mb-0">📊 Defect Rate รายเดือน — ปี <span id="monthlyDrYearLabel"></span></h6>
                                     <div class="d-flex gap-3 flex-wrap align-items-center" style="font-size:0.75rem;">
-                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#28a745;margin-right:4px;"></span>≤ <span class="dr-threshold-label">1.7</span>% (Good)</span>
-                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#ffc107;margin-right:4px;"></span>≤ <span class="dr-warn-threshold-label">2.0</span>% (Warning)</span>
-                                        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#dc3545;margin-right:4px;"></span>&gt; <span class="dr-warn-threshold-label">2.0</span>% (Critical)</span>
-                                        <span><span style="display:inline-block;width:9px;height:2px;background:#ffc107;margin-right:4px;vertical-align:middle;"></span>Threshold</span>
+                                        <span><span class="legend-dot square legend-dot-good"></span>≤ <span class="dr-threshold-label">1.7</span>% (Good)</span>
+                                        <span><span class="legend-dot square legend-dot-warning"></span>≤ <span class="dr-warn-threshold-label">2.0</span>% (Warning)</span>
+                                        <span><span class="legend-dot square legend-dot-critical"></span>&gt; <span class="dr-warn-threshold-label">2.0</span>% (Critical)</span>
+                                        <span><span class="legend-dot square legend-dot-warning"></span>Threshold</span>
                                     </div>
                                 </div>
                                 <div class="card-body" style="padding:12px 8px; position:relative; height:370px;">

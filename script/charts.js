@@ -48,14 +48,14 @@ function createChart(canvasId, data, color, label) {
                 data: data || [],
                 backgroundColor: function(context) {
                     if (currentDisplayType === 'percentage') {
-                        const value = context.parsed.y;
+                        const value = context.parsed?.y ?? context.raw ?? 0;
                         return getColorByPercentage(value) + '80';
                     }
                     return color + '80';
                 },
                 borderColor: function(context) {
                     if (currentDisplayType === 'percentage') {
-                        const value = context.parsed.y;
+                        const value = context.parsed?.y ?? context.raw ?? 0;
                         return getColorByPercentage(value);
                     }
                     return color;

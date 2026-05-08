@@ -179,12 +179,14 @@ function drawKPIGauge(overallPct, lineData) {
             const p2R  = gaugeR;
             const p2AW = Math.round(p2R * 0.40);
             const p2VFS = Math.max(14, Math.round(p2R * 0.20));
+            const p2UFS = Math.max(8,  Math.round(p2R * 0.075));
             const p2LFS = Math.max(8,  Math.round(p2R * 0.082));
             drawSpeedometer(kpiCX, p2Y, p2R, p2AW, prodVal, prodMAX, prodSegs,
                 prodTicks.map(v => ({ val: v, label: String(v) })),
                 [
-                    { text: prodVal.toFixed(2),   color: prodColor, size: p2VFS, bold: true, baseline: 'bottom', y: p2Y - p2R * 0.28 },
-                    { text: 'Productivity',         color: '#8896a8', size: p2LFS, baseline: 'top', y: p2Y + 12 },
+                    { text: prodVal.toFixed(2),   color: prodColor, size: p2VFS, bold: true, baseline: 'bottom', y: p2Y - p2R * 0.30 },
+                    { text: 'ชิ้น / Man-Hour',    color: '#8896a8', size: p2UFS, baseline: 'top', y: p2Y - p2R * 0.29 + 2 },
+                    { text: 'Productivity',       color: '#8896a8', size: p2LFS, baseline: 'top', y: p2Y + 12 },
                 ],
                 { id: 'productivityGaugeLabel', text: '⚡ ' + prodVal.toFixed(2) + ' — ' + prodStatus,
                   cls: prodBadgeClass }
@@ -267,8 +269,9 @@ function drawKPIGauge(overallPct, lineData) {
             drawSpeedometer(pCX, pCY, pR, pAW, prodVal, prodMAX, prodSegs,
                 prodTicks.map(v => ({ val: v, label: String(v) })),
                 [
-                    { text: prodVal.toFixed(2),   color: prodColor, size: pVFS, bold: true, baseline: 'bottom', y: pCY - pR * 0.28 },
-                    { text: 'Productivity',         color: '#8896a8', size: pLFS, baseline: 'top',   y: pCY + 14 },
+                    { text: prodVal.toFixed(2),   color: prodColor, size: pVFS, bold: true, baseline: 'bottom', y: pCY - pR * 0.30 },
+                    { text: 'ชิ้น / Man-Hour',    color: '#8896a8', size: pUFS, baseline: 'top',   y: pCY - pR * 0.29 + 2 },
+                    { text: 'Productivity',       color: '#8896a8', size: pLFS, baseline: 'top',   y: pCY + 14 },
                 ],
                 { id: 'productivityGaugeLabel', text: '⚡ ' + prodVal.toFixed(2) + ' — ' + prodStatus,
                   cls: prodBadgeClass }

@@ -1,5 +1,11 @@
 <?php
-header('Content-Type: application/json');
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+
+require_once __DIR__ . '/../config/app.php';
+header('Content-Type: application/json; charset=utf-8');
+setCorsHeaders();
+
 include __DIR__ . '/../config/db.php';
 
 try {
@@ -169,10 +175,6 @@ try {
     ]);
 }
 
-// Helper function to validate date format
-function validateDate($date, $format = 'Y-m-d') {
-    $d = DateTime::createFromFormat($format, $date);
-    return $d && $d->format($format) === $date;
-}
+// validateDate defined in config/app.php
 ?>
         

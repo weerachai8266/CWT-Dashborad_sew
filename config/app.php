@@ -1,9 +1,31 @@
 <?php
 
-const APP_VERSION_LABEL = 'v2.2 [beta]';
-const APP_COMPANY_LABEL = 'Chaiwattana Tannery Group';
+const APP_VERSION_LABEL  = 'v2.2 [beta]';
+const APP_COMPANY_LABEL  = 'Chaiwattana Tannery Group';
 const APP_BUSINESS_LABEL = 'Leather Seats and Auto Parts';
-const APP_POWERED_BY = 'weerachai';
+const APP_POWERED_BY     = 'weerachai';
+
+// Allowed origins for CORS — internal network only
+const CORS_ALLOWED_ORIGINS = ['http://192.168.100.10', 'http://192.168.0.44'];
+
+function setCorsHeaders(): void {
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    if (in_array($origin, CORS_ALLOWED_ORIGINS, true)) {
+        header("Access-Control-Allow-Origin: $origin");
+        header('Vary: Origin');
+    }
+    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type');
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        http_response_code(204);
+        exit;
+    }
+}
+
+function validateDate(string $date, string $format = 'Y-m-d'): bool {
+    $d = DateTime::createFromFormat($format, $date);
+    return $d !== false && $d->format($format) === $date;
+}
 
 function renderDashboardFooter(string $page_label): void {
     $page = htmlspecialchars($page_label, ENT_QUOTES, 'UTF-8');

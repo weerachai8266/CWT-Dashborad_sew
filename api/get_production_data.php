@@ -1,23 +1,26 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
 error_reporting(E_ALL);
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST');
-header('Access-Control-Allow-Headers: Content-Type');
+require_once __DIR__ . '/../config/app.php';
+header('Content-Type: application/json; charset=utf-8');
+setCorsHeaders();
 
-include(__DIR__ . "/../config/db.php"); // เชื่อมต่อฐานข้อมูล
-require_once(__DIR__ . '/data.class.php');
+include __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/data.class.php';
 
 // Handle API Requests
 try {
     $report = new get_db($conn);
 
     $start_date = $_GET['start_date'] ?? date('Y-m-d');
-    $end_date = $_GET['end_date'] ?? date('Y-m-d');
-    $type = $_GET['type'] ?? 'hourly';
+    $end_date   = $_GET['end_date']   ?? date('Y-m-d');
+    $type       = $_GET['type']       ?? 'hourly';
+
+    if (!validateDate($start_date) || !validateDate($end_date)) {
+        throw new Exception('Invalid date format');
+    }
     $display_type = $_GET['display_type'] ?? 'pieces'; // 'pieces' หรือ 'percentage'
 
     switch ($type) {

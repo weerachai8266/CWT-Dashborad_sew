@@ -1,169 +1,164 @@
 <?php
 class get_db {
     private $conn;
-    private $tables = [
-        'fc' => 'sewing_fc',
-        'fb' => 'sewing_fb',
-        'rc' => 'sewing_rc',
-        'rb' => 'sewing_rb',
+    private array $tables = [
+        'fc'    => 'sewing_fc',
+        'fb'    => 'sewing_fb',
+        'rc'    => 'sewing_rc',
+        'rb'    => 'sewing_rb',
         'third' => 'sewing_3rd',
-        'sub' => 'sewing_sub'
+        'sub'   => 'sewing_sub',
     ];
+
+    // Per-instance caches — eliminates N+1 DB queries
+    private ?array $breakTimesCache     = null;
+    private array  $minutesCache        = [];
+    private array  $targetsCache        = [];
+    private ?array $existingTablesCache = null;
 
     public function __construct($db) {
         $this->conn = $db;
     }
 
-    // ดึงข้อมูลเวลาพักเบรคที่ active
-    private function getBreakTimes() {
+    // Break times: 1 DB query per object lifetime (was 1 per getActualWorkingMinutes call)
+    private function getBreakTimes(): array {
+        if ($this->breakTimesCache !== null) {
+            return $this->breakTimesCache;
+        }
         try {
-            $query = "SELECT break_name, start_time, end_time, duration_minutes
-                      FROM break_times
-                      WHERE is_active = 1
-                      ORDER BY start_time";
-            $stmt = $this->conn->prepare($query);
+            $stmt = $this->conn->prepare(
+                "SELECT break_name, start_time, end_time, duration_minutes
+                 FROM break_times WHERE is_active = 1 ORDER BY start_time"
+            );
             $stmt->execute();
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $this->breakTimesCache = $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
             error_log("Error fetching break times: " . $e->getMessage());
-            return [];
+            $this->breakTimesCache = [];
         }
+        return $this->breakTimesCache;
     }
 
-    // คำนวณเวลาทำงานจริงในแต่ละชั่วโมง (หักเวลาพักเบรค)
-    public function getActualWorkingMinutes($hour) {
-        $break_times = $this->getBreakTimes();
+    // Working minutes: 1 calculation per unique hour value (max 24 total)
+    public function getActualWorkingMinutes(int $hour): int {
+        if (isset($this->minutesCache[$hour])) {
+            return $this->minutesCache[$hour];
+        }
+        $break_times         = $this->getBreakTimes();
         $total_break_minutes = 0;
-        
+
         foreach ($break_times as $break) {
-            $start_hour = (int)date('H', strtotime($break['start_time']));
-            $end_hour = (int)date('H', strtotime($break['end_time']));
+            $start_hour   = (int)date('H', strtotime($break['start_time']));
+            $end_hour     = (int)date('H', strtotime($break['end_time']));
             $start_minute = (int)date('i', strtotime($break['start_time']));
-            $end_minute = (int)date('i', strtotime($break['end_time']));
-            
-            // ตรวจสอบว่าเวลาพักเบรคอยู่ในชั่วโมงนี้หรือไม่
-            if ($start_hour == $hour) {
-                // เบรคเริ่มในชั่วโมงนี้
-                if ($end_hour == $hour) {
-                    // เบรคเริ่มและจบในชั่วโมงเดียวกัน
-                    $total_break_minutes += ($end_minute - $start_minute);
-                } else {
-                    // เบรคเริ่มในชั่วโมงนี้แต่จบในชั่วโมงถัดไป
-                    $total_break_minutes += (60 - $start_minute);
-                }
-            } elseif ($end_hour == $hour && $start_hour < $hour) {
-                // เบรคเริ่มในชั่วโมงก่อนหน้าแต่จบในชั่วโมงนี้
+            $end_minute   = (int)date('i', strtotime($break['end_time']));
+
+            if ($start_hour === $hour) {
+                $total_break_minutes += ($end_hour === $hour)
+                    ? ($end_minute - $start_minute)
+                    : (60 - $start_minute);
+            } elseif ($end_hour === $hour && $start_hour < $hour) {
                 $total_break_minutes += $end_minute;
             } elseif ($start_hour < $hour && $end_hour > $hour) {
-                // เบรคครอบคลุมทั้งชั่วโมง
                 $total_break_minutes += 60;
             }
         }
-        
-        return max(0, 60 - $total_break_minutes);
+
+        $result = max(0, 60 - $total_break_minutes);
+        $this->minutesCache[$hour] = $result;
+        return $result;
     }
 
-    // ดึงข้อมูลเป้าหมายจากตาราง sewing_target ตามวันที่ที่กำหนด
-    public function getTargets($date = null) {
+    // Elapsed net minutes within $hour — Today filter only, for current incomplete hour
+    private function getElapsedNetMinutesInHour(int $hour): int {
+        $now       = new DateTimeImmutable('now');
+        $today     = $now->format('Y-m-d');
+        $hourStart = new DateTimeImmutable(sprintf('%s %02d:00:00', $today, $hour));
+
+        $elapsedSecs = max(0, $now->getTimestamp() - $hourStart->getTimestamp());
+        if ($elapsedSecs <= 0) return 0;
+
+        $breakSecs = 0;
+        foreach ($this->getBreakTimes() as $break) {
+            $bs = new DateTimeImmutable("$today " . $break['start_time']);
+            $be = new DateTimeImmutable("$today " . $break['end_time']);
+            $os = max($hourStart->getTimestamp(), $bs->getTimestamp());
+            $oe = min($now->getTimestamp(),       $be->getTimestamp());
+            if ($oe > $os) $breakSecs += ($oe - $os);
+        }
+
+        return max(0, (int)round(($elapsedSecs - $breakSecs) / 60));
+    }
+
+    // Targets: 1 DB query per unique date (was 1-2 queries per call, no cross-method cache)
+    public function getTargets(?string $date = null): array {
+        $date  = $date ?? date('Y-m-d');
+        $empty = ['fc' => 0, 'fb' => 0, 'rc' => 0, 'rb' => 0, 'third' => 0, 'sub' => 0];
+
+        if (isset($this->targetsCache[$date])) {
+            return $this->targetsCache[$date];
+        }
+
         try {
-            if ($date === null) {
-                $date = date('Y-m-d');
-            }
-            
-            // ลองหาเป้าหมายในวันที่ที่กำหนดก่อน
-            $query = "SELECT fc, fb, rc, rb, `3rd`, sub
-                      FROM sewing_target
-                      WHERE DATE(created_at) = :date
-                      ORDER BY created_at DESC
-                      LIMIT 1";
-            $stmt = $this->conn->prepare($query);
+            // Single query covers both "exact date" and "latest before date" cases
+            $stmt = $this->conn->prepare(
+                "SELECT fc, fb, rc, rb, `3rd`, sub FROM sewing_target
+                 WHERE DATE(created_at) <= :date ORDER BY created_at DESC LIMIT 1"
+            );
             $stmt->bindParam(':date', $date);
             $stmt->execute();
-            
-            $result = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            if ($result) {
-                return [
-                    'fc' => (int)$result['fc'],
-                    'fb' => (int)$result['fb'],
-                    'rc' => (int)$result['rc'],
-                    'rb' => (int)$result['rb'],
-                    'third' => (int)$result['3rd'],
-                    'sub' => (int)$result['sub']
-                ];
-            }
-            
-            // ถ้าไม่มีเป้าหมายในวันนั้น หาเป้าหมายล่าสุดก่อนวันที่นั้น
-            $query = "SELECT fc, fb, rc, rb, `3rd`, sub
-                      FROM sewing_target
-                      WHERE DATE(created_at) <= :date
-                      ORDER BY created_at DESC
-                      LIMIT 1";
-            $stmt = $this->conn->prepare($query);
-            $stmt->bindParam(':date', $date);
-            $stmt->execute();
-            
-            $result = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            if ($result) {
-                return [
-                    'fc' => (int)$result['fc'],
-                    'fb' => (int)$result['fb'],
-                    'rc' => (int)$result['rc'],
-                    'rb' => (int)$result['rb'],
-                    'third' => (int)$result['3rd'],
-                    'sub' => (int)$result['sub']
-                ];
-            }else {
-                // ถ้าไม่มีเป้าหมายเลย ให้ใช้ค่าเริ่มต้น
-                return [
-                    'fc' => 0,
-                    'fb' => 0,
-                    'rc' => 0,
-                    'rb' => 0,
-                    'third' => 0,
-                    'sub' => 0
-                ];
-            }
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            $targets = $row ? [
+                'fc'    => (int)$row['fc'],
+                'fb'    => (int)$row['fb'],
+                'rc'    => (int)$row['rc'],
+                'rb'    => (int)$row['rb'],
+                'third' => (int)$row['3rd'],
+                'sub'   => (int)$row['sub'],
+            ] : $empty;
         } catch (PDOException $e) {
             error_log("Error fetching targets for date $date: " . $e->getMessage());
-            return [
-                'fc' => 0,
-                'fb' => 0,
-                'rc' => 0,
-                'rb' => 0,
-                'third' => 0,
-                'sub' => 0
-            ];           
+            $targets = $empty;
         }
+
+        $this->targetsCache[$date] = $targets;
+        return $targets;
     }
 
-    // ดึงช่วงเวลาการทำงานจริงจากข้อมูล
-    public function getWorkingHours($start_date, $end_date) {
+    // Table existence: 1 SHOW TABLES per object lifetime (was 1 SHOW TABLES LIKE per table per method)
+    private function tableExists(string $table_name): bool {
+        if ($this->existingTablesCache === null) {
+            try {
+                $stmt = $this->conn->query("SHOW TABLES");
+                $this->existingTablesCache = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            } catch (PDOException $e) {
+                error_log("Error fetching table list: " . $e->getMessage());
+                $this->existingTablesCache = [];
+            }
+        }
+        return in_array($table_name, $this->existingTablesCache, true);
+    }
+
+    public function getWorkingHours(string $start_date, string $end_date): array {
         $all_hours = [];
-        
+
         foreach ($this->tables as $line => $table_name) {
-            // ตรวจสอบว่าตารางมีอยู่จริง
-            $check_table = "SHOW TABLES LIKE :table_name";
-            $stmt = $this->conn->prepare($check_table);
-            $stmt->bindParam(':table_name', $table_name);
-            $stmt->execute();
-            
-            if ($stmt->rowCount() == 0) {
+            if (!$this->tableExists($table_name)) {
                 error_log("Table $table_name does not exist");
                 continue;
             }
 
-            $query = "SELECT DISTINCT HOUR(created_at) as hour 
-                      FROM " . $table_name . " 
-                      WHERE DATE(created_at) BETWEEN :start_date AND :end_date and status = '10' ORDER BY hour";
-            
+            $query = "SELECT DISTINCT HOUR(created_at) AS hour
+                      FROM `{$table_name}`
+                      WHERE DATE(created_at) BETWEEN :start_date AND :end_date
+                        AND status = '10'
+                      ORDER BY hour";
             try {
                 $stmt = $this->conn->prepare($query);
                 $stmt->bindParam(':start_date', $start_date);
                 $stmt->bindParam(':end_date', $end_date);
                 $stmt->execute();
-                
                 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                     $all_hours[] = (int)$row['hour'];
                 }
@@ -171,354 +166,274 @@ class get_db {
                 error_log("Error querying table $table_name: " . $e->getMessage());
             }
         }
-        
-        // ลบ duplicate และ sort
+
         $all_hours = array_unique($all_hours);
         sort($all_hours);
-        
-        // ถ้าไม่มีข้อมูล ให้ใช้เวลามาตรฐาน
-        if (empty($all_hours)) {
-            $all_hours = range(8, 16); // 8:00-16:00 เป็นค่าเริ่มต้น
-        }
-        
-        return $all_hours;
+        return $all_hours ?: range(8, 16);
     }
 
-    // ดึงข้อมูลรายชั่วโมงแบบ Dynamic
-    public function getHourlyReport($start_date, $end_date, $display_type = 'pieces') {
-        $result = [];
+    public function getHourlyReport(string $start_date, string $end_date, string $display_type = 'pieces'): array {
+        $result        = [];
         $working_hours = $this->getWorkingHours($start_date, $end_date);
-        
-        // สร้าง labels สำหรับแกน x
+        $targets       = $this->getTargets($start_date);
+
         $labels = [];
         foreach ($working_hours as $hour) {
             $labels[] = sprintf('%02d:00', $hour);
         }
         $result['labels'] = $labels;
-        
-        // ดึงเป้าหมายสำหรับการคำนวณเปอร์เซ็นต์ ตามวันที่เริ่มต้น
-        $targets = $this->getTargets($start_date);
-        
+
         foreach ($this->tables as $line => $table_name) {
-            // ตรวจสอบว่าตารางมีอยู่จริง
-            $check_table = "SHOW TABLES LIKE :table_name";
-            $stmt = $this->conn->prepare($check_table);
-            $stmt->bindParam(':table_name', $table_name);
-            $stmt->execute();
-            
-            if ($stmt->rowCount() == 0) {
-                error_log("Table $table_name does not exist");
+            if (!$this->tableExists($table_name)) {
                 $result[$line] = array_fill(0, count($working_hours), 0);
                 continue;
             }
 
-            $query = "SELECT
-                        HOUR(created_at) as hour,
-                        SUM(qty) as total_qty,
-                        COUNT(*) as total_items
-                      FROM " . $table_name . "
-                      WHERE DATE(created_at) BETWEEN :start_date AND :end_date and status = '10' GROUP BY HOUR(created_at) ORDER BY hour";
-
+            $query = "SELECT HOUR(created_at) AS hour, SUM(qty) AS total_qty
+                      FROM `{$table_name}`
+                      WHERE DATE(created_at) BETWEEN :start_date AND :end_date AND status = '10'
+                      GROUP BY HOUR(created_at)
+                      ORDER BY hour";
             try {
                 $stmt = $this->conn->prepare($query);
                 $stmt->bindParam(':start_date', $start_date);
                 $stmt->bindParam(':end_date', $end_date);
                 $stmt->execute();
-                
+
                 $hourly_data = [];
                 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                     $hourly_data[$row['hour']] = (int)$row['total_qty'];
                 }
-                
-                // จัดเรียงข้อมูลตามช่วงเวลาที่หา
+
+                $isToday     = ($start_date === $end_date && $start_date === date('Y-m-d'));
+                $currentHour = $isToday ? (int)date('H') : -1;
+
                 $line_data = [];
                 foreach ($working_hours as $hour) {
-                    $actual_qty = isset($hourly_data[$hour]) ? $hourly_data[$hour] : 0;
-                    
+                    $actual_qty = $hourly_data[$hour] ?? 0;
                     if ($display_type === 'percentage') {
-                        // คำนวณเปอร์เซ็นต์
-                        $actual_working_minutes = $this->getActualWorkingMinutes($hour);
-                        $hourly_target = (int) round(($targets[$line] * $actual_working_minutes) / 60);
-
-                        if ($hourly_target > 0) {
-                            $percentage = ($actual_qty / $hourly_target) * 100;
-                            $line_data[] = round($percentage, 2);
-                        } else {
-                            $line_data[] = 0;
-                        }
+                        $actual_working_minutes = ($isToday && $hour === $currentHour)
+                            ? $this->getElapsedNetMinutesInHour($hour)
+                            : $this->getActualWorkingMinutes($hour);
+                        $hourly_target = (int)round(($targets[$line] * $actual_working_minutes) / 60);
+                        $line_data[] = $hourly_target > 0
+                            ? round(($actual_qty / $hourly_target) * 100, 2)
+                            : 0;
                     } else {
-                        // แสดงจำนวนชิ้นจริง
                         $line_data[] = $actual_qty;
                     }
                 }
-                
                 $result[$line] = $line_data;
-                
             } catch (PDOException $e) {
                 error_log("Error querying $table_name: " . $e->getMessage());
                 $result[$line] = array_fill(0, count($working_hours), 0);
             }
         }
-        
+
         return $result;
     }
 
-    // ดึงข้อมูลรายวันตามช่วงวันที่
-    public function getDailyReport($start_date, $end_date, $display_type = 'pieces') {
+    public function getDailyReport(string $start_date, string $end_date, string $display_type = 'pieces'): array {
         $result = [];
         $labels = [];
-        
-        // สร้างช่วงวันที่
+
         $period = new DatePeriod(
             new DateTime($start_date),
             new DateInterval('P1D'),
             new DateTime($end_date . ' +1 day')
         );
-        
         foreach ($period as $date) {
             $labels[] = $date->format('d/m');
         }
         $result['labels'] = $labels;
 
-        // คำนวณนาทีทำงานต่อวัน (หักเบรค) — ใช้ร่วมกันทุก line
+        // Pre-compute daily working minutes once — shared by all lines
         $single_day_minutes = 0;
-        for ($hour = 8; $hour <= 17; $hour++) {
-            $single_day_minutes += $this->getActualWorkingMinutes($hour);
+        for ($h = 8; $h <= 17; $h++) {
+            $single_day_minutes += $this->getActualWorkingMinutes($h);
         }
-        $targets_cache = [];
-        
+
         foreach ($this->tables as $line => $table_name) {
-            // ตรวจสอบว่าตารางมีอยู่จริง
-            $check_table = "SHOW TABLES LIKE :table_name";
-            $stmt = $this->conn->prepare($check_table);
-            $stmt->bindParam(':table_name', $table_name);
-            $stmt->execute();
-            
-            if ($stmt->rowCount() == 0) {
+            if (!$this->tableExists($table_name)) {
                 $result[$line] = array_fill(0, count($labels), 0);
                 continue;
             }
 
-            $query = "SELECT 
-                        DATE(created_at) as date,
-                        SUM(qty) as total_qty
-                      FROM " . $table_name . " 
-                      WHERE DATE(created_at) BETWEEN :start_date AND :end_date AND status = '10' 
-                      GROUP BY DATE(created_at) 
+            $query = "SELECT DATE(created_at) AS date, SUM(qty) AS total_qty
+                      FROM `{$table_name}`
+                      WHERE DATE(created_at) BETWEEN :start_date AND :end_date AND status = '10'
+                      GROUP BY DATE(created_at)
                       ORDER BY date";
-            
             try {
                 $stmt = $this->conn->prepare($query);
                 $stmt->bindParam(':start_date', $start_date);
                 $stmt->bindParam(':end_date', $end_date);
                 $stmt->execute();
-                
+
                 $daily_data = [];
                 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                     $daily_data[$row['date']] = (int)$row['total_qty'];
                 }
-                
-                // จัดเรียงข้อมูลตามวันที่
+
                 $line_data = [];
                 foreach ($period as $date) {
                     $date_str = $date->format('Y-m-d');
-                    $qty = isset($daily_data[$date_str]) ? $daily_data[$date_str] : 0;
-
                     if ($display_type === 'percentage') {
-                        // ใช้ calculateHourlyAveragePercentage เพื่อให้ตรงกับ Summary
-                        if (!isset($targets_cache[$date_str])) {
-                            $targets_cache[$date_str] = $this->getTargets($date_str);
-                        }
-                        $day_hourly_target = $targets_cache[$date_str][$line] ?? 0;
-                        $pct = $this->calculateHourlyAveragePercentage($date_str, $date_str, $line, $table_name, $day_hourly_target);
+                        $day_target  = $this->getTargets($date_str)[$line] ?? 0;
+                        $pct         = $this->calculateHourlyAveragePercentage(
+                            $date_str, $date_str, $line, $table_name, $day_target
+                        );
                         $line_data[] = round($pct, 1);
                     } else {
-                        $line_data[] = $qty;
+                        $line_data[] = $daily_data[$date_str] ?? 0;
                     }
                 }
-                
                 $result[$line] = $line_data;
-                
             } catch (PDOException $e) {
                 error_log("Error querying $table_name: " . $e->getMessage());
                 $result[$line] = array_fill(0, count($labels), 0);
             }
         }
-        
+
         return $result;
     }
 
-    // ดึงข้อมูลสรุปรวม
-    public function getSummaryReport($start_date, $end_date, $display_type = 'pieces') {
-        $result = [];
+    public function getSummaryReport(string $start_date, string $end_date, string $display_type = 'pieces'): array {
+        $result  = [];
         $targets = $this->getTargets($start_date);
-        
+
+        // Pre-compute daily working minutes once
+        $single_day_minutes = 0;
+        for ($h = 8; $h <= 17; $h++) {
+            $single_day_minutes += $this->getActualWorkingMinutes($h);
+        }
+
         foreach ($this->tables as $line => $table_name) {
-            // ตรวจสอบว่าตารางมีอยู่จริง
-            $check_table = "SHOW TABLES LIKE :table_name";
-            $stmt = $this->conn->prepare($check_table);
-            $stmt->bindParam(':table_name', $table_name);
-            $stmt->execute();
-            
-            if ($stmt->rowCount() == 0) {
+            if (!$this->tableExists($table_name)) {
                 $result[$line] = [
-                    'total_qty' => 0,
-                    'total_items' => 0,
-                    'unique_items' => 0,
-                    'percentage' => 0,
-                    'target' => $targets[$line]
+                    'total_qty' => 0, 'total_items' => 0, 'unique_items' => 0,
+                    'percentage' => 0, 'target' => $targets[$line], 'daily_target' => 0,
                 ];
                 continue;
             }
 
-            $query = "SELECT
-                        SUM(qty) as total_qty,
-                        COUNT(*) as total_items,
-                        COUNT(DISTINCT item) as unique_items
-                      FROM " . $table_name . "
-                      WHERE DATE(created_at) BETWEEN :start_date AND :end_date and status = '10'";
-
+            $query = "SELECT SUM(qty) AS total_qty, COUNT(*) AS total_items,
+                             COUNT(DISTINCT item) AS unique_items
+                      FROM `{$table_name}`
+                      WHERE DATE(created_at) BETWEEN :start_date AND :end_date AND status = '10'";
             try {
                 $stmt = $this->conn->prepare($query);
                 $stmt->bindParam(':start_date', $start_date);
                 $stmt->bindParam(':end_date', $end_date);
                 $stmt->execute();
-                
-                $row = $stmt->fetch(PDO::FETCH_ASSOC);
-                $total_qty = (int)($row['total_qty'] ?? 0);
-                
-                // คำนวณเปอร์เซ็นต์แบบรายชั่วโมงแล้วเฉลี่ย
-                $percentage = $this->calculateHourlyAveragePercentage($start_date, $end_date, $line, $table_name, $targets[$line]);
-                
-                // ดึง distinct วันที่มีการผลิตจริง
+
+                $row        = $stmt->fetch(PDO::FETCH_ASSOC);
+                $total_qty  = (int)($row['total_qty'] ?? 0);
+                $percentage = $this->calculateHourlyAveragePercentage(
+                    $start_date, $end_date, $line, $table_name, $targets[$line]
+                );
+
+                // Production dates for daily_target accumulation
                 $dates_stmt = $this->conn->prepare(
-                    "SELECT DISTINCT DATE(created_at) as prod_date FROM " . $table_name .
-                    " WHERE DATE(created_at) BETWEEN :s AND :e AND status = '10' ORDER BY prod_date"
+                    "SELECT DISTINCT DATE(created_at) AS prod_date
+                     FROM `{$table_name}`
+                     WHERE DATE(created_at) BETWEEN :s AND :e AND status = '10'
+                     ORDER BY prod_date"
                 );
                 $dates_stmt->execute([':s' => $start_date, ':e' => $end_date]);
                 $prod_dates = $dates_stmt->fetchAll(PDO::FETCH_COLUMN);
 
-                // คำนวณเวลาทำงานต่อวัน (หักเบรค)
-                $single_day_minutes = 0;
-                for ($hour = 8; $hour <= 17; $hour++) {
-                    $single_day_minutes += $this->getActualWorkingMinutes($hour);
-                }
-
-                // คำนวณเป้าหมายรวม per-day (แต่ละวันใช้ target ของวันนั้น)
                 $daily_target = 0;
                 foreach ($prod_dates as $prod_date) {
-                    $day_targets = $this->getTargets($prod_date);
-                    $daily_target += (int) round($day_targets[$line] * $single_day_minutes / 60);
+                    $day_t = $this->getTargets($prod_date)[$line] ?? 0;
+                    $daily_target += (int)round($day_t * $single_day_minutes / 60);
                 }
-                
+
                 $result[$line] = [
-                    'total_qty' => $total_qty,
-                    'total_items' => (int)($row['total_items'] ?? 0),
+                    'total_qty'    => $total_qty,
+                    'total_items'  => (int)($row['total_items']  ?? 0),
                     'unique_items' => (int)($row['unique_items'] ?? 0),
-                    'percentage' => round($percentage, 2),
-                    'target' => $targets[$line],
-                    'daily_target' => round($daily_target, 0)
+                    'percentage'   => round($percentage, 2),
+                    'target'       => $targets[$line],
+                    'daily_target' => round($daily_target, 0),
                 ];
-                
             } catch (PDOException $e) {
                 error_log("Error querying $table_name: " . $e->getMessage());
                 $result[$line] = [
-                    'total_qty' => 0,
-                    'total_items' => 0,
-                    'unique_items' => 0,
-                    'percentage' => 0,
-                    'target' => $targets[$line],
-                    'daily_target' => 0
+                    'total_qty' => 0, 'total_items' => 0, 'unique_items' => 0,
+                    'percentage' => 0, 'target' => $targets[$line], 'daily_target' => 0,
                 ];
             }
         }
-        
+
         return $result;
     }
 
-    // คำนวณเปอร์เซ็นต์แบบรายชั่วโมงแล้วเฉลี่ย
-    private function calculateHourlyAveragePercentage($start_date, $end_date, $line, $table_name, $hourly_target) {
+    // Uses class-level caches — no extra DB calls for targets/break-times already fetched
+    private function calculateHourlyAveragePercentage(
+        string $start_date, string $end_date, string $line, string $table_name, float $hourly_target
+    ): float {
         try {
-            // ดึงข้อมูลรายชั่วโมงที่มีการผลิต (GROUP BY วันและชั่วโมง เพื่อไม่ให้รวมข้ามวัน)
-            $query = "SELECT
-                        DATE(created_at) as date,
-                        HOUR(created_at) as hour,
-                        SUM(qty) as total_qty
-                      FROM " . $table_name . "
-                      WHERE DATE(created_at) BETWEEN :start_date AND :end_date and status = '10'
+            $query = "SELECT DATE(created_at) AS date, HOUR(created_at) AS hour, SUM(qty) AS total_qty
+                      FROM `{$table_name}`
+                      WHERE DATE(created_at) BETWEEN :start_date AND :end_date AND status = '10'
                       GROUP BY DATE(created_at), HOUR(created_at)
                       HAVING total_qty > 0
                       ORDER BY date, hour";
-            
+
             $stmt = $this->conn->prepare($query);
             $stmt->bindParam(':start_date', $start_date);
             $stmt->bindParam(':end_date', $end_date);
             $stmt->execute();
-            
+
+            $isToday     = ($start_date === $end_date && $start_date === date('Y-m-d'));
+            $currentHour = $isToday ? (int)date('H') : -1;
+            $todayStr    = $isToday ? date('Y-m-d') : '';
+
             $hourly_percentages = [];
-            $targets_cache = []; // cache target ต่อวัน เพื่อลด DB call
-            
             while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                $hour = (int)$row['hour'];
+                $hour       = (int)$row['hour'];
                 $actual_qty = (int)$row['total_qty'];
-                $row_date = $row['date'];
+                $row_date   = $row['date'];
 
-                // ดึง target ของวันนั้น (per-day) โดย cache ไว้
-                if (!isset($targets_cache[$row_date])) {
-                    $targets_cache[$row_date] = $this->getTargets($row_date);
-                }
-                $day_hourly_target = $targets_cache[$row_date][$line] ?? $hourly_target;
+                $day_hourly_target      = $this->getTargets($row_date)[$line] ?? $hourly_target;
+                $actual_working_minutes = ($isToday && $row_date === $todayStr && $hour === $currentHour)
+                    ? $this->getElapsedNetMinutesInHour($hour)
+                    : $this->getActualWorkingMinutes($hour);
+                $adjusted_target        = (int)round($day_hourly_target * $actual_working_minutes / 60);
 
-                // คำนวณเป้าหมายรายชั่วโมง (หักเวลาพักเบรค)
-                $actual_working_minutes = $this->getActualWorkingMinutes($hour);
-                $adjusted_hourly_target = (int) round(($day_hourly_target * $actual_working_minutes) / 60);
-
-                // คำนวณเปอร์เซ็นต์รายชั่วโมง
-                if ($adjusted_hourly_target > 0) {
-                    $hourly_percentage = ($actual_qty / $adjusted_hourly_target) * 100;
-                    $hourly_percentages[] = $hourly_percentage; 
+                if ($adjusted_target > 0) {
+                    $hourly_percentages[] = ($actual_qty / $adjusted_target) * 100;
                 }
             }
-            
-            // คำนวณค่าเฉลี่ยของเปอร์เซ็นต์รายชั่วโมง
-            if (count($hourly_percentages) > 0) {
-                return array_sum($hourly_percentages) / count($hourly_percentages);
-            } else {
-                return 0;
-            }
-            
+
+            return count($hourly_percentages)
+                ? array_sum($hourly_percentages) / count($hourly_percentages)
+                : 0.0;
         } catch (PDOException $e) {
             error_log("Error calculating hourly average percentage for $table_name: " . $e->getMessage());
-            return 0;
+            return 0.0;
         }
     }
 
-    // ดึงข้อมูลส่งออก excel รายละเอียด
-    public function getDetailReport($start_date, $end_date) {
+    public function getDetailReport(string $start_date, string $end_date): array {
         $result = [];
-
         foreach ($this->tables as $line => $table_name) {
-            $query = "SELECT 
-                        item, qty, 
-                        DATE(created_at) as date, 
-                        TIME(created_at) as time
-                    FROM $table_name
-                    WHERE DATE(created_at) BETWEEN :start_date AND :end_date and status = '10'
-                    ORDER BY created_at ASC";
-
+            $query = "SELECT item, qty, DATE(created_at) AS date, TIME(created_at) AS time
+                      FROM `{$table_name}`
+                      WHERE DATE(created_at) BETWEEN :start_date AND :end_date AND status = '10'
+                      ORDER BY created_at ASC";
             try {
                 $stmt = $this->conn->prepare($query);
                 $stmt->bindParam(':start_date', $start_date);
                 $stmt->bindParam(':end_date', $end_date);
                 $stmt->execute();
-
                 $result[$line] = $stmt->fetchAll(PDO::FETCH_ASSOC);
             } catch (PDOException $e) {
+                error_log("Error querying $table_name: " . $e->getMessage());
                 $result[$line] = [];
             }
         }
-
         return $result;
     }
 }
-?>
